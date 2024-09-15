@@ -1,5 +1,7 @@
 import numpy as np
 
+epsilon = 0.01
+
 #What is epsilon??
 def check_SOn(m):
     """
@@ -16,13 +18,39 @@ def check_SOn(m):
     mTranspose = np.transpose(m)
     result = np.dot(m, mTranspose)
 
-    if result != np.identiy(len(m)):
+    if not (np.allclose(result, np.identity(len(m)), atol=epsilon)):
         return False
 
     # Check if determinant is equal to 1 
     mDeterminant = np.linalg.det(m)
-
-    if mDeterminant != 1:
+    
+    if abs(mDeterminant - 1) > epsilon:
         return False
+
+    return True
+
+def check_quaternion(v):
+    """
+    Checks if the matrix satisifies conditions for Quarternions
+
+    Input:
+    - v: vector
+
+    Returns:
+    - boolean: Returns True if satisfies conditions, False if not 
+    """
+
+    return True
+
+def check_SEn(m):
+    """
+    Checks if the matrix satisifies conditions for Special Euclidean Groups
+
+    Input:
+    - m: matrix
+
+    Returns:
+    - boolean: Returns True if satisfies conditions, False if not 
+    """
 
     return True
