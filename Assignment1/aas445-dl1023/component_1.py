@@ -53,4 +53,27 @@ def check_SEn(m):
     - boolean: Returns True if satisfies conditions, False if not 
     """
 
-    return True
+    #check the so again, then check the vector make sure its good, then check the bottom row is 0 0 1, easier to fix
+    
+    # Check whether it is a rotation for 2D or 3D 
+    # Check the epsilon for this one !!!
+    
+    if len(m) == 3:
+        rotationMatrix = m[:2,:2]
+        # Check rotation matrix
+        if check_SOn(rotationMatrix):
+            translationVector = m[:2, 2]
+            # Check bottom row for 0 and 1
+            bottomRow = m[2, :]
+            if bottomRow == [0, 0, 1]:
+                return True    
+    elif len(m) == 4:
+        rotationMatrix = m[:3, :3]
+        if check_SOn(rotationMatrix):
+            translationVector = m[:3, 3]
+            # Check bottom row for 0 and 1
+            bottomRow = m[3, :]
+            if bottomRow == [0, 0, 0, 1]:
+                return True
+
+    return False
