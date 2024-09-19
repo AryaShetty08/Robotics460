@@ -40,6 +40,9 @@ def check_quaternion(v):
     - boolean: Returns True if satisfies conditions, False if not 
     """
 
+    #Just have to check unit vector equal to 1?
+    # make sure its right vector length 
+
     return True
 
 def check_SEn(m):
@@ -57,7 +60,7 @@ def check_SEn(m):
     
     # Check whether it is a rotation for 2D or 3D 
     # Check the epsilon for this one !!!
-    
+
     if len(m) == 3:
         rotationMatrix = m[:2,:2]
         # Check rotation matrix
