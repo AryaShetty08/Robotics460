@@ -40,8 +40,19 @@ def check_quaternion(v):
     - boolean: Returns True if satisfies conditions, False if not 
     """
 
-    #Just have to check unit vector equal to 1?
-    # make sure its right vector length 
+    """
+    The conditions for a vector to be in Quarternions are:
+    1. The vector is a unit vector
+    2. The vector is of length 4
+    """
+
+    # Check if vector is of length 4
+    if len(v) != 4:
+        return False
+    
+    # Check if vector is a unit vector
+    if not np.allclose(np.linalg.norm(v), 1, atol=epsilon):
+        return False
 
     return True
 
