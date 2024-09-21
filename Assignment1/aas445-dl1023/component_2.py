@@ -47,8 +47,8 @@ if __name__ == "__main__":
      fig = plt.figure()
      ax = fig.add_subplot(111, projection='3d')
 
-     for i in range(2000):
-         rotationMatrix = random_rotation_matrix(True)
+     for i in range(500):
+         rotationMatrix = random_rotation_matrix(False)
          startVector = [0, 1, 0]
          v = [0.1, 0, 0]
          rotatedStart = np.matmul(rotationMatrix, startVector)
