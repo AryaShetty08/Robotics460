@@ -21,6 +21,10 @@ def interpolate_rigid_body(start_pose, goal_pose):
      x0, y0, theta0 = start_pose
      xG, yG, thetaG = goal_pose
 
+     path = []
+
+     path.append((x0, y0, theta0))
+
      if x0 < -10 or x0 > 10 or y0 < -10 or y0 > 10 or xG < -10 or xG > 10 or yG < -10 or yG > 10:
           print("Start and End poses out of bounds")
           return (0, 0, 0)
@@ -28,19 +32,36 @@ def interpolate_rigid_body(start_pose, goal_pose):
      # have to determine how many steps to take to reach goal 
      # Figure out distance in 2d by dividing the length and iterating those steps 
      steps = 10 
+     
      path_x = np.linspace(x0, xG, steps)
      path_y = np.linspace(y0, yG, steps)
 
-     # angles must handle singularity cause of wrapping 
-     if abs(thetaG - theta0) > np.pi:
-          if thetaG > theta0:
-               theta0 += 2 * np.pi
-          else:
-               thetaG += 2 * np.pi
+     r2 = np.array([[np.cos(thetaG), -np.sin(thetaG), 0], [np.sin(thetaG), np.cos(thetaG), 0], [0, 0, 1]])
 
-     path_theta = np.linspace(theta0, thetaG, steps) % (2 * np.pi)
-     
-     path = [(path_x[i], path_y[i], path_theta[i]) for i in range(steps)]
+     for i in np.arange(0.1, 1.0, 0.1):
+          
+          # angles must handle singularity cause of wrapping 
+          r1 = np.array([[np.cos(theta0), -np.sin(theta0), 0], [np.sin(theta0), np.cos(theta0), 0], [0, 0, 1]])
+
+          # get relative rotation matrix
+          r_rel = np.dot(r2, np.linalg.inv(r1))
+
+          # find angle
+          angle_rel = np.arctan2(r_rel[1, 0], r_rel[0, 0])
+
+          # get new angle
+          new_angle = i * angle_rel
+
+          # apply matrix to r1
+          new_matrix = np.array([[np.cos(new_angle), -np.sin(new_angle), 0], [np.sin(new_angle), np.cos(new_angle), 0], [0, 0, 1]])
+          r_interp = np.dot(new_matrix, r1)
+
+          # get next angle for path 
+          theta_interp = np.arctan2(r_interp[1, 0], r_interp[0 , 0])
+
+          path.append((path_x[int(i*steps)], path_y[int(i*steps)], theta_interp))
+
+          x0, y0, theta0 = path[int(i * steps)]
 
      return path
 
@@ -140,7 +161,7 @@ def visualize_path(path):
 if __name__ == "__main__":
      start_pose =  (0, 0, 0)
      end_pose = (5, 5, np.pi/2)
-     #print(interpolate_rigid_body(start_pose, end_pose))
+     print(interpolate_rigid_body(start_pose, end_pose))
 
      plan = [
      (1, 0, 0.1, 2), 
@@ -151,4 +172,4 @@ if __name__ == "__main__":
 
      example_path = [(0, 0, 0), (1, 1, 0.5), (2, 2, 1.0), (3, 3, 1.5), (4, 4, 2.0)]
 
-     visualize_path(example_path)
+     #visualize_path(example_path)
