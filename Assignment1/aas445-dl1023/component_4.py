@@ -7,10 +7,19 @@ from matplotlib.widgets import Button
 L1 = 2
 L2 = 1.5
 
-# add comments, also make sure it can only take proper inputs
-
 #same as rigid body calc
 def slerp(r1, theta_rel, t):
+    """
+    Uses spherical linear interpolation to smoothly traverse arms of robot
+
+    Input:
+    - r1
+    - theta_rel
+    - t 
+
+    Returns:
+    - next_theta: next angle for pose 
+    """
 
     # amount of angle by steps
     theta_interp = theta_rel * t
@@ -23,6 +32,17 @@ def slerp(r1, theta_rel, t):
     return next_theta
 
 def f_kinematics(theta1, theta2):
+     """
+    Goes from angles to pose positions of robot arms
+
+    Input:
+    - theta1
+    - theta2
+
+    Returns:
+    - tuple: World space positions of links, and the link relative positions
+     """
+
      x1 = L1*np.cos(theta1)
      y1 = L1*np.sin(theta1)
 
@@ -78,8 +98,6 @@ def interpolate_arm(start, goal):
           
           path.append(f_kinematics(next_theta1, next_theta2))
 
-     # convert to x,y,theta tuples for pose 
-
      return path
 
 def forward_propagate_arm(start_pose, plan):
@@ -96,7 +114,6 @@ def forward_propagate_arm(start_pose, plan):
      path = []
      theta1, theta2 = start_pose
 
-     # what is the velocity tuple like?
      for velocity, duration in plan:
           
           theta1 += velocity[0] * duration
@@ -105,8 +122,7 @@ def forward_propagate_arm(start_pose, plan):
           path.append(f_kinematics(theta1, theta2))
 
      return path
-     
-          
+              
 def visualize_path(path):
      """
     Visualizes path and animates robot's arm movement

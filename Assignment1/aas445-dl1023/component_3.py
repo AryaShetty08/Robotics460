@@ -16,30 +16,29 @@ def interpolate_rigid_body(start_pose, goal_pose):
     Returns:
     - path: sequence of poses
     """
-     
-     # maybe have checks for ir in -10, 10 grid where robot is supposed to move 
-     
+          
      x0, y0, theta0 = start_pose
      xG, yG, thetaG = goal_pose
 
      path = []
-
+     
+     # First pose is the start
      path.append((x0, y0, theta0))
 
      if x0 < -10 or x0 > 10 or y0 < -10 or y0 > 10 or xG < -10 or xG > 10 or yG < -10 or yG > 10:
           print("Start and End poses out of bounds")
-          return (0, 0, 0)
+          return path
      
-     # have to determine how many steps to take to reach goal 
+     # Determine how many steps to take to reach goal, can change if needed
      # Figure out distance in 2d by dividing the length and iterating those steps 
      steps = 10 
      
      path_x = np.linspace(x0, xG, steps)
      path_y = np.linspace(y0, yG, steps)
 
+     # angles must handle singularity cause of wrapping 
      r2 = np.array([[np.cos(thetaG), -np.sin(thetaG), 0], [np.sin(thetaG), np.cos(thetaG), 0], [0, 0, 1]])
 
-     # angles must handle singularity cause of wrapping 
      r1 = np.array([[np.cos(theta0), -np.sin(theta0), 0], [np.sin(theta0), np.cos(theta0), 0], [0, 0, 1]])
 
      # get relative rotation matrix
@@ -61,8 +60,6 @@ def interpolate_rigid_body(start_pose, goal_pose):
           theta_interp = np.arctan2(r_interp[1, 0], r_interp[0 , 0])
 
           path.append((path_x[int(i*steps)], path_y[int(i*steps)], theta_interp))
-
-          x0, y0, theta0 = path[int(i * steps)]
 
      return path
 
@@ -94,9 +91,10 @@ def forward_propagate_rigid_body(start_pose, plan):
           Vx, Vy, Vtheta, duration = plan[i]
           velocity = (Vx, Vy, Vtheta)
           
+          # find distance and angle traveled in time
           deltaX, deltaY, deltaTheta = (v * duration for v in velocity)
 
-          # apply rotation matrix ??
+          # apply rotation matrix
           x = deltaX*np.cos(theta) - deltaY*np.sin(theta)
           y = deltaX*np.sin(theta) + deltaY*np.cos(theta)
           theta = (theta + deltaTheta) % (2*np.pi)
@@ -106,11 +104,19 @@ def forward_propagate_rigid_body(start_pose, plan):
      return path 
           
 def draw_vectors(ax, center, theta, length=0.5):
+     """
+    Draws vectors of direction robot is headed for specfic pose
+
+    Input:
+    - ax
+    - center
+    - theta
+
+    """
      x, y = center
      dx = length*np.cos(theta)
      dy = length*np.sin(theta)
 
-     ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.2, fc='green', ec='green')
      ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.2, fc='green', ec='green')
 
 
@@ -156,7 +162,6 @@ def visualize_path(path):
 
      # Animation state control
      anim_running = True
-
 
      def init():
         box.set_xy((-0.5, -0.25))  # Initial position of the car box (relative to the center)

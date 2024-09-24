@@ -5,7 +5,7 @@ from component_1 import check_SOn
 
 def random_rotation_matrix(naive):
      """
-    Checks if the matrix satisifies conditions for Special Euclidean Groups
+    Generates random rotation matrix that satisifies conditions for Special Euclidean Groups
 
     Input:
     - naive: boolean that determines naive solution or not 
@@ -14,10 +14,12 @@ def random_rotation_matrix(naive):
     - matrix: Returns valid, randomly generated rotation matrix 
     """
      if naive:
+         # Generate random euler angles
          alpha = np.random.uniform(0, 2*np.pi)
          beta = np.random.uniform(0, 2*np.pi)
          gamma = np.random.uniform(0, 2*np.pi)
 
+         # Create rotation matrices
          rotationX = [[1, 0, 0], [0, np.cos(alpha), -np.sin(alpha)], [0, np.sin(alpha), np.cos(alpha)]]
          rotationY = [[np.cos(beta), 0, np.sin(beta)], [0, 1, 0], [-np.sin(beta), 0, np.cos(beta)]]
          rotationZ = [[np.cos(gamma), -np.sin(gamma), 0], [np.sin(gamma), np.cos(gamma), 0], [0, 0, 1]]
@@ -25,11 +27,13 @@ def random_rotation_matrix(naive):
          m = np.matmul(rotationX, rotationY)
          m = np.matmul(m, rotationZ)
 
-         #print(check_SOn(m))
+         # Already satisfies SO(n) conditions since its using rotation matrices
          return m
             
      else:
+         # Followed algorithm in paper
          m = np.zeros((3, 3))
+         # Runs until condition met
          while not check_SOn(m):
             x1, x2, x3 = np.random.uniform(0, 1, 3)
 
@@ -40,8 +44,19 @@ def random_rotation_matrix(naive):
             rotationZ = [[np.cos(2*np.pi*x1), -np.sin(2*np.pi*x1), 0], [np.sin(2*np.pi*x1), np.cos(2*np.pi*x1), 0], [0, 0, 1]]
 
             m = np.dot(mReflection, rotationZ)
-         #print(check_SOn(m))
          return m
+
+def random_quaternion(naive):
+     """
+    Generates random quaternion that satisifies conditions 
+
+    Input:
+    - naive: boolean that determines naive solution or not 
+
+    Returns:
+    - vector: Returns valid, randomly generated rotation quaternion 
+    """
+     return 
 
 if __name__ == "__main__":
      fig = plt.figure()

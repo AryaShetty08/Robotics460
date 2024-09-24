@@ -2,7 +2,6 @@ import numpy as np
 
 epsilon = 0.01
 
-#What is epsilon??
 def check_SOn(m):
     """
     Checks if the matrix satisifies conditions for Special Orthogonal Groups
@@ -14,6 +13,10 @@ def check_SOn(m):
     - boolean: Returns True if satisfies conditions, False if not 
     """
 
+    # Make sure input is matrix
+    if len(m.shape) != 2:
+        raise ValueError("Input must be a 2D matrix.")
+    
     # Check transpose of matrix 
     mTranspose = np.transpose(m)
     result = np.dot(m, mTranspose)
@@ -46,6 +49,10 @@ def check_quaternion(v):
     2. The vector is of length 4
     """
 
+    # Make sure input is vector
+    if len(v.shape) != 1:
+        raise ValueError("Input must be a 1D vector.")
+    
     # Check if vector is of length 4
     if len(v) != 4:
         return False
@@ -66,12 +73,13 @@ def check_SEn(m):
     Returns:
     - boolean: Returns True if satisfies conditions, False if not 
     """
-
-    #check the so again, then check the vector make sure its good, then check the bottom row is 0 0 1, easier to fix
     
     # Check whether it is a rotation for 2D or 3D 
-    # Check the epsilon for this one !!!
 
+    # Make sure input is matrix
+    if len(m.shape) != 2:
+        raise ValueError("Input must be a 2D matrix.")
+    
     if len(m) == 3:
         rotationMatrix = m[:2,:2]
         # Check rotation matrix
