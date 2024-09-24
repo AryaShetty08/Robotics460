@@ -2,24 +2,37 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
+from matplotlib.widgets import Button
 
 L1 = 2
 L2 = 1.5
 
+# add comments, also make sure it can only take proper inputs
+
 #same as rigid body calc
-def slerp(r1, r2, t):
+def slerp(r1, theta_rel, t):
 
-    R_rel = np.dot(r1, r2.T)
-    
-    theta_rel = np.arctan2(R_rel[1, 0], R_rel[0, 0])
-    
+    # amount of angle by steps
     theta_interp = theta_rel * t
-    
+    # new rotation matrix 
     new_matrix = np.array([[np.cos(theta_interp), -np.sin(theta_interp)], [np.sin(theta_interp),  np.cos(theta_interp)]])
-
+    # angle for pose
     R_interp = np.dot(new_matrix, r1)
-    
-    return R_interp
+    next_theta = np.arctan2(R_interp[1,0], R_interp[0,0])
+
+    return next_theta
+
+def f_kinematics(theta1, theta2):
+     x1 = L1*np.cos(theta1)
+     y1 = L1*np.sin(theta1)
+
+     # based on first link
+     x2 = x1 + L2*np.cos(theta1+theta2)
+     y2 = y1 + L2*np.sin(theta1+theta2)
+
+     #need explanation for this
+     return (x1/2, y1/2), (x1+ L2/2 * np.cos(theta1 + theta2), y1+ L2/2 * np.sin(theta1 + theta2)), (x1, y1), (x2, y2)
+
 
 def interpolate_arm(start, goal):
      """
@@ -42,18 +55,30 @@ def interpolate_arm(start, goal):
      r2_goal =  np.array([[np.cos(theta2_g), -np.sin(theta2_g)], [np.sin(theta2_g),  np.cos(theta2_g)]])
 
      path = []
+     path_angles = []
      steps = 10
+
+     # get relative matrix 
+     R_rel = np.dot(r1_start, r1_goal.T)
+     #get the total angle needed to traverse
+     theta_rel_1 = np.arctan2(R_rel[1, 0], R_rel[0, 0])
+
+     # get relative matrix 
+     R_rel = np.dot(r2_start, r2_goal.T)
+     #get the total angle needed to traverse
+     theta_rel_2 = np.arctan2(R_rel[1, 0], R_rel[0, 0])
 
      for i in range(steps):
           t = i / (steps - 1)
 
-          r1_interp = slerp(r1_start, r1_goal, t)
-          r2_interp = slerp(r2_start, r2_goal, t)
+          next_theta1 = slerp(r1_start, theta_rel_1, t)
+          next_theta2 = slerp(r2_start, theta_rel_2, t)
 
-          theta1_interp = np.arctan2(r1_interp[1,0], r1_interp[0,0])
-          theta2_interp = np.arctan2(r2_interp[1,0], r2_interp[0,0])
+          path_angles.append((next_theta1, next_theta2))
+          
+          path.append(f_kinematics(next_theta1, next_theta2))
 
-          path.append((theta1_interp, theta2_interp))
+     # convert to x,y,theta tuples for pose 
 
      return path
 
@@ -68,6 +93,18 @@ def forward_propagate_arm(start_pose, plan):
     Returns:
     - path: sequence of poses
     """
+     path = []
+     theta1, theta2 = start_pose
+
+     # what is the velocity tuple like?
+     for velocity, duration in plan:
+          
+          theta1 += velocity[0] * duration
+          theta2 += velocity[1] * duration
+
+          path.append(f_kinematics(theta1, theta2))
+
+     return path
      
           
 def visualize_path(path):
@@ -80,6 +117,65 @@ def visualize_path(path):
     Returns:
     - visualization
     """
+     fig, ax = plt.subplots()
+     ax.set_xlim([-4, 4])
+     ax.set_ylim([-4, 4])
+
+     link1, = ax.plot([], [], 'b-', lw=5, label='Link 1')
+     link2, = ax.plot([], [], 'g-', lw=5, label='Link 2')
+     xVec, = ax.plot([], [], 'ro', lw=2, label='x-vec')
+     yVec, = ax.plot([], [], 'yo', lw=2, label='y-vec')
      
+     start_ax = plt.axes([0.7, 0.9, 0.1, 0.075])
+     pause_ax = plt.axes([0.81, 0.9, 0.1, 0.075])
+
+     # Define the button objects
+     start_button = Button(start_ax, 'Start')
+     pause_button = Button(pause_ax, 'Pause')
+
+     # This variable will control the animation state
+     anim_running = True
+     
+     def init():
+         link1.set_data([], [])
+         link2.set_data([], [])
+         return link1, link2
+     
+     def update(frame):
+          (cx1, cy1), (cx2, cy2), (x1, y1), (x2, y2) = path[frame]
+          link1.set_data([0, x1], [0, y1])
+          link2.set_data([x1, x2], [y1, y2])
+          xVec.set_data([cx1, cx2], [cy1, cy2]) #center of links as points 
+
+          return link1, link2, xVec, yVec
+
+     def start(event):
+        nonlocal anim_running
+        if not anim_running:
+            anim.event_source.start()
+            anim_running = True
+
+     def pause(event):
+        nonlocal anim_running
+        if anim_running:
+            anim.event_source.stop()
+            anim_running = False
+
+     # Connect the buttons to the event handlers
+     start_button.on_clicked(start)
+     pause_button.on_clicked(pause)
+     
+     anim = FuncAnimation(fig, update, frames=len(path), interval=500, blit=True)
+     plt.legend()
+     plt.show()
+
 if __name__ == "__main__":
-     start_pose =  (0, 0, 0)
+     start =  (0, 0)
+     goal = (np.radians(90), np.radians(180))
+
+     path = interpolate_arm(start, goal)
+     visualize_path(path)
+
+     plan = [((0.1, 0.05), 1), ((-0.1, 0.1), 2)]
+     new_path = forward_propagate_arm(start, plan)
+     #visualize_path(new_path)

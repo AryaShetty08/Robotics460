@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 from matplotlib.animation import FuncAnimation
 import matplotlib.patches as patches
+from matplotlib.widgets import Button
 
 
 def interpolate_rigid_body(start_pose, goal_pose):
@@ -38,17 +39,17 @@ def interpolate_rigid_body(start_pose, goal_pose):
 
      r2 = np.array([[np.cos(thetaG), -np.sin(thetaG), 0], [np.sin(thetaG), np.cos(thetaG), 0], [0, 0, 1]])
 
+     # angles must handle singularity cause of wrapping 
+     r1 = np.array([[np.cos(theta0), -np.sin(theta0), 0], [np.sin(theta0), np.cos(theta0), 0], [0, 0, 1]])
+
+     # get relative rotation matrix
+     r_rel = np.dot(r2, np.linalg.inv(r1))
+
+     # find angle
+     angle_rel = np.arctan2(r_rel[1, 0], r_rel[0, 0])
+
      for i in np.arange(0.1, 1.0, 0.1):
           
-          # angles must handle singularity cause of wrapping 
-          r1 = np.array([[np.cos(theta0), -np.sin(theta0), 0], [np.sin(theta0), np.cos(theta0), 0], [0, 0, 1]])
-
-          # get relative rotation matrix
-          r_rel = np.dot(r2, np.linalg.inv(r1))
-
-          # find angle
-          angle_rel = np.arctan2(r_rel[1, 0], r_rel[0, 0])
-
           # get new angle
           new_angle = i * angle_rel
 
@@ -104,7 +105,15 @@ def forward_propagate_rigid_body(start_pose, plan):
      
      return path 
           
-     
+def draw_vectors(ax, center, theta, length=0.5):
+     x, y = center
+     dx = length*np.cos(theta)
+     dy = length*np.sin(theta)
+
+     ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.2, fc='green', ec='green')
+     ax.arrow(x, y, dx, dy, head_width=0.1, head_length=0.2, fc='green', ec='green')
+
+
 def visualize_path(path):
      """
     Visualizes path and animates robot's movement
@@ -118,6 +127,7 @@ def visualize_path(path):
      robot_dim = (0.5, 0.3)
 
      fig, ax = plt.subplots()
+     plt.subplots_adjust(bottom=0.2)
 
      ax.set_xlim(-10, 10)
      ax.set_ylim(-10, 10)
@@ -136,6 +146,23 @@ def visualize_path(path):
      
      ax.add_patch(box)
 
+     # Define button axes for Start and Pause
+     start_ax = plt.axes([0.7, 0.9, 0.1, 0.075])
+     pause_ax = plt.axes([0.81, 0.9, 0.1, 0.075])
+     
+     # Define the button objects
+     start_button = Button(start_ax, 'Start')
+     pause_button = Button(pause_ax, 'Pause')
+
+     # Animation state control
+     anim_running = True
+
+
+     def init():
+        box.set_xy((-0.5, -0.25))  # Initial position of the car box (relative to the center)
+        box.angle = 0  # Initial angle of the car
+        return box,
+
      #animate 
      def update(frame):
           pose = path[frame]
@@ -144,11 +171,31 @@ def visualize_path(path):
           box.set_xy((x - robot_dim[0] / 2, y - robot_dim[1] /2))
           box.angle = theta * 180 / np.pi
 
+          #ax.patches = [box]
+
+          draw_vectors(ax, (x, y), theta)
+
           return box,
 
-     # mess with this or make it another input, maybe slider??
-     interval = 500
-     anim = FuncAnimation(fig, update, frames=len(path), interval=interval, blit=True)
+     # Button click events
+     def start(event):
+        nonlocal anim_running
+        if not anim_running:
+            ani.event_source.start()
+            anim_running = True
+
+     def pause(event):
+        nonlocal anim_running
+        if anim_running:
+            ani.event_source.stop()
+            anim_running = False
+
+     # Connect the buttons to the event handlers
+     start_button.on_clicked(start)
+     pause_button.on_clicked(pause)
+
+     # Animation object
+     ani = FuncAnimation(fig, update, frames=len(path), init_func=init, interval=500, repeat=True)
 
      ax.set_xlabel('X')
      ax.set_ylabel('Y')
@@ -161,7 +208,9 @@ def visualize_path(path):
 if __name__ == "__main__":
      start_pose =  (0, 0, 0)
      end_pose = (5, 5, np.pi/2)
-     print(interpolate_rigid_body(start_pose, end_pose))
+     #print(interpolate_rigid_body(start_pose, end_pose))
+     visualize_path(interpolate_rigid_body(start_pose, end_pose))
+
 
      plan = [
      (1, 0, 0.1, 2), 
@@ -169,6 +218,7 @@ if __name__ == "__main__":
      (0, 0, 0, 1)     
      ]
      #print(forward_propagate_rigid_body(start_pose, plan))
+     #visualize_path(forward_propagate_rigid_body(start_pose, plan))
 
      example_path = [(0, 0, 0), (1, 1, 0.5), (2, 2, 1.0), (3, 3, 1.5), (4, 4, 2.0)]
 
