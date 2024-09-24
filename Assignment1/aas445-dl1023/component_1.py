@@ -99,3 +99,44 @@ def check_SEn(m):
                 return True
 
     return False
+
+def correct_SOn(m):
+    # Make sure input is matrix
+    if len(m.shape) != 2:
+        raise ValueError("Input must be a 2D matrix.")
+    
+    # Check transpose of matrix 
+    mTranspose = np.transpose(m)
+    result = np.dot(m, mTranspose)
+
+    if not (np.allclose(result, np.identity(len(m)), atol=epsilon)):
+        # Correct the matrix
+        mCorrected = np.dot(m, np.linalg.inv(result))
+        return mCorrected
+
+    # Check if determinant is equal to 1 
+    mDeterminant = np.linalg.det(m)
+    
+    if abs(mDeterminant - 1) > epsilon:
+        # Correct the matrix
+        mCorrected = np.dot(m, np.linalg.inv(mDeterminant))
+        return mCorrected
+
+    return m
+
+def correct_quaternion(v):
+    # Make sure input is vector
+    if len(v.shape) != 1:
+        raise ValueError("Input must be a 1D vector.")
+    
+    # Check if vector is of length 4
+    if len(v) != 4:
+        return False
+    
+    # Check if vector is a unit vector
+    if not np.allclose(np.linalg.norm(v), 1, atol=epsilon):
+        # Correct the vector
+        vCorrected = v / np.linalg.norm(v)
+        return vCorrected
+
+    return v
