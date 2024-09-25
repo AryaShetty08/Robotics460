@@ -161,10 +161,32 @@ def correct_SEn(m):
                 # Correct the matrix
                 m[2, :] = [0, 0, 1]
                 return m
+        else: 
+            rotationMatrix = correct_SOn(rotationMatrix)
+            m[:2,:2] = rotationMatrix
+            # Check bottom row for 0 and 1
+            bottomRow = m[2, :]
+            if np.allclose(bottomRow, [0, 0, 1], atol=0):
+                return m
+            else:
+                # Correct the matrix
+                m[2, :] = [0, 0, 1]
+                return m 
     elif len(m) == 4:
         rotationMatrix = m[:3, :3]
         if check_SOn(rotationMatrix):
             translationVector = m[:3, 3]
+            # Check bottom row for 0 and 1
+            bottomRow = m[3, :]
+            if np.allclose(bottomRow, [0, 0, 0, 1], atol=0):
+                return m
+            else:
+                # Correct the matrix
+                m[3, :] = [0, 0, 0, 1]
+                return m
+        else:
+            rotationMatrix = correct_SOn(rotationMatrix)
+            m[:3, :3] = rotationMatrix
             # Check bottom row for 0 and 1
             bottomRow = m[3, :]
             if np.allclose(bottomRow, [0, 0, 0, 1], atol=0):
