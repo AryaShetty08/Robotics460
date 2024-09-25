@@ -95,7 +95,7 @@ if __name__ == "__main__":
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    for i in range(500):
+    for i in range(1000):
         rotationMatrix = random_rotation_matrix(False)
         startVector = [0, 1, 0]
         v = [0.1, 0, 0]
@@ -112,14 +112,26 @@ if __name__ == "__main__":
     ax.set_zlim([-1, 1])
     ax.set_title('Random Rotation Visualization')
     plt.show()
-
-    [w, x, y, z] = random_quaternion(False)
-    print(w, x, y, z)
-
-    # plots the quaternion
+    
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.quiver(0, 0, 0, x, y, z, color='b')
+
+    for i in range(500):
+        [w, x, y, z] = random_quaternion(False)
+        [w1, x1, y1, z1] = random_quaternion(False)
+        # Normalize the vector part (x, y, z) to ensure it's a unit vector on the sphere
+        vec = np.array([x, y, z])
+        vec /= np.linalg.norm(vec)  # Normalize to unit length
+    
+        # Generate a random origin in 3D space
+        origin = np.random.uniform(-1, 1, 3)
+
+        # Plot vector originating from the random origin and pointing outwards
+        ax.quiver(origin[0], origin[1], origin[2], vec[0], vec[1], vec[2], color='b', length=0.2)
+
+    #print(w, x, y, z)
+
+    # plots the quaternion
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')

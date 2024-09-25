@@ -68,15 +68,16 @@ def interpolate_arm(start, goal):
      theta1_s, theta2_s = start
      theta1_g, theta2_g = goal
 
+     path = []
+     path_angles = []
+     steps = 10
+     
+     '''
      r1_start =  np.array([[np.cos(theta1_s), -np.sin(theta1_s)], [np.sin(theta1_s),  np.cos(theta1_s)]])
      r1_goal =  np.array([[np.cos(theta1_g), -np.sin(theta1_g)], [np.sin(theta1_g),  np.cos(theta1_g)]])
 
      r2_start =  np.array([[np.cos(theta2_s), -np.sin(theta2_s)], [np.sin(theta2_s),  np.cos(theta2_s)]])
      r2_goal =  np.array([[np.cos(theta2_g), -np.sin(theta2_g)], [np.sin(theta2_g),  np.cos(theta2_g)]])
-
-     path = []
-     path_angles = []
-     steps = 10
 
      # get relative matrix 
      R_rel = np.dot(r1_start, r1_goal.T)
@@ -97,7 +98,27 @@ def interpolate_arm(start, goal):
           path_angles.append((next_theta1, next_theta2))
           
           path.append(f_kinematics(next_theta1, next_theta2))
+     '''
+     
+     # Unwrap angles to ensure continuous interpolation
+     theta1_s = np.unwrap([theta1_s])[0]
+     theta1_g = np.unwrap([theta1_g])[0]
+    
+     theta2_s = np.unwrap([theta2_s])[0]
+     theta2_g = np.unwrap([theta2_g])[0]
 
+     for i in range(steps):
+        t = i / (steps - 1)
+
+        # Linear interpolation for angles
+        next_theta1 = (1 - t) * theta1_s + t * theta1_g
+        next_theta2 = (1 - t) * theta2_s + t * theta2_g
+
+        path_angles.append((next_theta1, next_theta2))
+        
+        # Compute the forward kinematics for the current angles
+        path.append(f_kinematics(next_theta1, next_theta2))
+     
      return path
 
 def forward_propagate_arm(start_pose, plan):
@@ -181,17 +202,17 @@ def visualize_path(path):
      start_button.on_clicked(start)
      pause_button.on_clicked(pause)
      
-     anim = FuncAnimation(fig, update, frames=len(path), interval=500, blit=True)
+     anim = FuncAnimation(fig, update, frames=len(path), interval=100, blit=True)
      plt.legend()
      plt.show()
 
 if __name__ == "__main__":
-     start =  (0, 0)
-     goal = (np.radians(90), np.radians(180))
+     start =  (np.radians(0), 0)
+     goal = (np.radians(270), 0)
 
      path = interpolate_arm(start, goal)
-     visualize_path(path)
+     #visualize_path(path)
 
-     plan = [((0.1, 0.05), 1), ((-0.1, 0.1), 2)]
+     plan = [((0, np.radians(90)), 2), ((0, np.radians(90)), 2)]
      new_path = forward_propagate_arm(start, plan)
      #visualize_path(new_path)

@@ -80,7 +80,7 @@ def forward_propagate_rigid_body(start_pose, plan):
      x0, y0, theta0 = start_pose
 
      if x0 < -10 or x0 > 10 or y0 < -10 or y0 > 10:
-          print("Start and End poses out of bounds")
+          print("Start pose out of bounds")
           return (0, 0, 0)
      
      path = [(None, None, None) for _ in range(len(plan) + 1)]
@@ -95,8 +95,8 @@ def forward_propagate_rigid_body(start_pose, plan):
           deltaX, deltaY, deltaTheta = (v * duration for v in velocity)
 
           # apply rotation matrix
-          x = deltaX*np.cos(theta) - deltaY*np.sin(theta)
-          y = deltaX*np.sin(theta) + deltaY*np.cos(theta)
+          x += deltaX*np.cos(theta) - deltaY*np.sin(theta)
+          y += deltaX*np.sin(theta) + deltaY*np.cos(theta)
           theta = (theta + deltaTheta) % (2*np.pi)
 
           path[i+1] = (x, y, theta)
@@ -164,9 +164,10 @@ def visualize_path(path):
      anim_running = True
 
      def init():
-        box.set_xy((-0.5, -0.25))  # Initial position of the car box (relative to the center)
-        box.angle = 0  # Initial angle of the car
-        return box,
+         pose = path[0]
+         box.set_xy((pose[0] - robot_dim[0] / 2, pose[1] - robot_dim[1] / 2))  # Use starting pose
+         box.angle = pose[2] * 180 / np.pi  # Use starting angle
+         return box,
 
      #animate 
      def update(frame):
@@ -212,18 +213,17 @@ def visualize_path(path):
 
 if __name__ == "__main__":
      start_pose =  (0, 0, 0)
-     end_pose = (5, 5, np.pi/2)
+     end_pose = (4, 5, np.pi)
      #print(interpolate_rigid_body(start_pose, end_pose))
-     visualize_path(interpolate_rigid_body(start_pose, end_pose))
-
+     #visualize_path(interpolate_rigid_body(start_pose, end_pose))
 
      plan = [
-     (1, 0, 0.1, 2), 
-     (0.5, 0, -0.2, 3),
-     (0, 0, 0, 1)     
+     (1, 1, np.radians(45), 1), 
+     (1, 0, np.radians(45), 2),   
+     (1, 0, 0, 2),   
      ]
      #print(forward_propagate_rigid_body(start_pose, plan))
-     #visualize_path(forward_propagate_rigid_body(start_pose, plan))
+     visualize_path(forward_propagate_rigid_body(start_pose, plan))
 
      example_path = [(0, 0, 0), (1, 1, 0.5), (2, 2, 1.0), (3, 3, 1.5), (4, 4, 2.0)]
 
