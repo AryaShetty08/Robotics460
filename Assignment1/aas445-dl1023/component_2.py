@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt 
 from mpl_toolkits.mplot3d import Axes3D
-from component_1 import check_SOn
+from component_1 import check_SOn, check_quaternion
 
 def random_rotation_matrix(naive):
      """
@@ -73,23 +73,39 @@ def random_quaternion(naive):
         m = np.matmul(m, rotationZ)
 
         # Convert to quaternion
-        w = np.sqrt(1 + m[0,0] + m[1,1] + m[2,2])/2
-        x = (m[2,1] - m[1,2])/(4*w)
-        y = (m[0,2] - m[2,0])/(4*w)
-        z = (m[1,0] - m[0,1])/(4*w)
+        q = np.zeros(4)
+        q[0] = np.sqrt(1 + m[0,0] + m[1,1] + m[2,2]) / 2
+        q[1] = (m[2,1] - m[1,2]) / (4*q[0])
+        q[2] = (m[0,2] - m[2,0]) / (4*q[0])
+        q[3] = (m[1,0] - m[0,1]) / (4*q[0])
 
-        return [w, x, y, z]
+        return q
     else:
-        # Followed algorithm in paper
-        while True:
+        q = np.zeros(4)
+        # Runs until condition met
+        while not check_quaternion(q):
             x1, x2, x3 = np.random.uniform(0, 1, 3)
-            w = np.sqrt(1-x1)*np.sin(2*np.pi*x2)
-            x = np.sqrt(1-x1)*np.cos(2*np.pi*x2)
-            y = np.sqrt(x1)*np.sin(2*np.pi*x3)
-            z = np.sqrt(x1)*np.cos(2*np.pi*x3)
 
-            if np.linalg.norm([w, x, y, z]) == 1:
-                return [w, x, y, z]
+            q[0] = np.sqrt(1-x1)*np.sin(2*np.pi*x2)
+            q[1] = np.sqrt(1-x1)*np.cos(2*np.pi*x2)
+            q[2] = np.sqrt(x1)*np.sin(2*np.pi*x3)
+            q[3] = np.sqrt(x1)*np.cos(2*np.pi*x3)
+        return q
+        
+def quaternion_to_rotation_matrix(q):
+    """
+    Converts quaternion to rotation matrix
+
+    Input:
+    - q: quaternion
+
+    Returns:
+    - matrix: rotation matrix
+    """
+    q = q / np.linalg.norm(q)
+    q0, q1, q2, q3 = q
+    matrix = np.array([[1 - 2*q2**2 - 2*q3**2, 2*q1*q2 - 2*q0*q3, 2*q1*q3 + 2*q0*q2], [2*q1*q2 + 2*q0*q3, 1 - 2*q1**2 - 2*q3**2, 2*q2*q3 - 2*q0*q1], [2*q1*q3 - 2*q0*q2, 2*q2*q3 + 2*q0*q1, 1 - 2*q1**2 - 2*q2**2]])
+    return matrix
 
 if __name__ == "__main__":
     fig = plt.figure()
@@ -112,26 +128,22 @@ if __name__ == "__main__":
     ax.set_zlim([-1, 1])
     ax.set_title('Random Rotation Visualization')
     plt.show()
-    
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    for i in range(500):
-        [w, x, y, z] = random_quaternion(False)
-        [w1, x1, y1, z1] = random_quaternion(False)
-        # Normalize the vector part (x, y, z) to ensure it's a unit vector on the sphere
-        vec = np.array([x, y, z])
-        vec /= np.linalg.norm(vec)  # Normalize to unit length
-    
-        # Generate a random origin in 3D space
-        origin = np.random.uniform(-1, 1, 3)
-
-        # Plot vector originating from the random origin and pointing outwards
-        ax.quiver(origin[0], origin[1], origin[2], vec[0], vec[1], vec[2], color='b', length=0.2)
-
-    #print(w, x, y, z)
 
     # plots the quaternion
+
+    fig2 = plt.figure()
+    ax = fig2.add_subplot(111, projection='3d')
+
+    for i in range(1000):
+        quaternion = random_quaternion(False)
+        rotationMatrix = quaternion_to_rotation_matrix(quaternion)
+        startVector = [0, 1, 0]
+        v = [0.1, 0, 0]
+        rotatedStart = np.matmul(rotationMatrix, startVector)
+        rotated_v = np.matmul(rotationMatrix, v)
+        #ax.quiver(startVector[0], startVector[1], startVector[2], v[0], v[1], v[2], color='b')
+        ax.quiver(rotatedStart[0], rotatedStart[1], rotatedStart[2], rotated_v[0], rotated_v[1], rotated_v[2], color='b')
+
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
