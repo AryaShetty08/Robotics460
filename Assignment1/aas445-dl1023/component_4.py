@@ -72,34 +72,6 @@ def interpolate_arm(start, goal):
      path_angles = []
      steps = 10
      
-     '''
-     r1_start =  np.array([[np.cos(theta1_s), -np.sin(theta1_s)], [np.sin(theta1_s),  np.cos(theta1_s)]])
-     r1_goal =  np.array([[np.cos(theta1_g), -np.sin(theta1_g)], [np.sin(theta1_g),  np.cos(theta1_g)]])
-
-     r2_start =  np.array([[np.cos(theta2_s), -np.sin(theta2_s)], [np.sin(theta2_s),  np.cos(theta2_s)]])
-     r2_goal =  np.array([[np.cos(theta2_g), -np.sin(theta2_g)], [np.sin(theta2_g),  np.cos(theta2_g)]])
-
-     # get relative matrix 
-     R_rel = np.dot(r1_start, r1_goal.T)
-     #get the total angle needed to traverse
-     theta_rel_1 = np.arctan2(R_rel[1, 0], R_rel[0, 0])
-
-     # get relative matrix 
-     R_rel = np.dot(r2_start, r2_goal.T)
-     #get the total angle needed to traverse
-     theta_rel_2 = np.arctan2(R_rel[1, 0], R_rel[0, 0])
-
-     for i in range(steps):
-          t = i / (steps - 1)
-
-          next_theta1 = slerp(r1_start, theta_rel_1, t)
-          next_theta2 = slerp(r2_start, theta_rel_2, t)
-
-          path_angles.append((next_theta1, next_theta2))
-          
-          path.append(f_kinematics(next_theta1, next_theta2))
-     '''
-     
      # Unwrap angles to ensure continuous interpolation
      theta1_s = np.unwrap([theta1_s])[0]
      theta1_g = np.unwrap([theta1_g])[0]
@@ -205,15 +177,18 @@ def visualize_path(path):
      
      anim = FuncAnimation(fig, update, frames=len(path), interval=1000, blit=True)
      plt.legend()
+
+     #anim.save("component_4_interpolate_arm.gif", writer="imagemagick")
+     #anim.save("component_4_forward_propagate_arm.gif", writer="imagemagick")
      plt.show()
 
 if __name__ == "__main__":
      start =  (np.radians(0), np.radians(45))
-     goal = (np.radians(270), 0)
+     goal = (np.radians(135), 0)
 
      path = interpolate_arm(start, goal)
-     visualize_path(path)
+     #visualize_path(path)
 
-     plan = [((0, np.radians(45)), 2), ((np.radians(45), np.radians(45)), 1)]
+     plan = [((0, np.radians(30)), 2), ((np.radians(45), 0), 1), ((np.radians(60), 0), 1)]
      new_path = forward_propagate_arm(start, plan)
-     #visualize_path(new_path)
+     visualize_path(new_path)

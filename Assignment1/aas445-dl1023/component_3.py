@@ -176,7 +176,7 @@ def visualize_path(path):
           pose = path[frame]
           x, y, theta = pose
 
-          box.set_xy((x - (robot_dim[0] / 2), y - (robot_dim[1] /2)))
+          box.set_xy((x, y))
           box.angle = theta * 180 / np.pi
 
           #ax.patches = [box]
@@ -210,6 +210,9 @@ def visualize_path(path):
      ax.set_title('Robot Path Animation')
      ax.grid(True)
 
+     #ani.save("component_3_interpolate_rigid_body.gif", writer="imagemagick")
+     #ani.save("component_3_forward_propagate_rigid_body.gif", writer="imagemagick")
+
      plt.show()
 
 
@@ -217,15 +220,17 @@ if __name__ == "__main__":
      start_pose =  (0, 0, 0)
      end_pose = (4, 5, np.pi/2)
      print(interpolate_rigid_body(start_pose, end_pose))
-     visualize_path(interpolate_rigid_body(start_pose, end_pose))
+     #visualize_path(interpolate_rigid_body(start_pose, end_pose))
 
      plan = [
      (1, 1, np.radians(45), 1), 
      (1, 0, np.radians(45), 2),   
-     (1, 0, 0, 2),   
+     (1, 0, 0, 2),
+     (1, 0, np.radians(45), 1),
+     (1, 0, 0, 2)   
      ]
      #print(forward_propagate_rigid_body(start_pose, plan))
-     #visualize_path(forward_propagate_rigid_body(start_pose, plan))
+     visualize_path(forward_propagate_rigid_body(start_pose, plan))
 
      example_path = [(0, 0, 0), (1, 1, 0.5), (2, 2, 1.0), (3, 3, 1.5), (4, 4, 2.0)]
 
