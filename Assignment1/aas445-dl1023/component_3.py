@@ -77,8 +77,6 @@ def forward_propagate_rigid_body(start_pose, plan):
     - path: sequence of poses
     """
 
-     # what should theta input be?
-
      x0, y0, theta0 = start_pose
 
      if x0 < -10 or x0 > 10 or y0 < -10 or y0 > 10:

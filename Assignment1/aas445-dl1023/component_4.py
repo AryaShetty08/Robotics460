@@ -72,7 +72,7 @@ def interpolate_arm(start, goal):
      path_angles = []
      steps = 10
      
-     # Unwrap angles to ensure continuous interpolation
+     # Unwrap angles to ensure continuous interpolation, not SLERP in this case
      theta1_s = np.unwrap([theta1_s])[0]
      theta1_g = np.unwrap([theta1_g])[0]
     
@@ -88,7 +88,7 @@ def interpolate_arm(start, goal):
 
         path_angles.append((next_theta1, next_theta2))
         
-        # Compute the forward kinematics for the current angles
+        # forward kinematics for the current angles
         path.append(f_kinematics(next_theta1, next_theta2))
      
      return path
