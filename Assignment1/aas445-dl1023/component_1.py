@@ -34,7 +34,7 @@ def check_SOn(m):
 
 def check_quaternion(v):
     """
-    Checks if the matrix satisifies conditions for Quarternions
+    Checks if the matrix satisifies conditions for Quaternions
 
     Input:
     - v: vector
@@ -44,7 +44,7 @@ def check_quaternion(v):
     """
 
     """
-    The conditions for a vector to be in Quarternions are:
+    The conditions for a vector to be in Quaternions are:
     1. The vector is a unit vector
     2. The vector is of length 4
     """
