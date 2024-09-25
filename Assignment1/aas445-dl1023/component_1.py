@@ -87,7 +87,7 @@ def check_SEn(m):
             translationVector = m[:2, 2]
             # Check bottom row for 0 and 1
             bottomRow = m[2, :]
-            if bottomRow == [0, 0, 1]:
+            if np.allclose(bottomRow, [0, 0, 1], atol=0):
                 return True    
     elif len(m) == 4:
         rotationMatrix = m[:3, :3]
@@ -95,7 +95,7 @@ def check_SEn(m):
             translationVector = m[:3, 3]
             # Check bottom row for 0 and 1
             bottomRow = m[3, :]
-            if bottomRow == [0, 0, 0, 1]:
+            if np.allclose(bottomRow, [0, 0, 0, 1], atol=0):
                 return True
 
     return False
@@ -140,3 +140,51 @@ def correct_quaternion(v):
         return vCorrected
 
     return v
+
+def correct_SEn(m):
+    # Check whether it is a rotation for 2D or 3D 
+
+    # Make sure input is matrix
+    if len(m.shape) != 2:
+        raise ValueError("Input must be a 2D matrix.")
+    
+    if len(m) == 3:
+        rotationMatrix = m[:2,:2]
+        # Check rotation matrix
+        if check_SOn(rotationMatrix):
+            translationVector = m[:2, 2]
+            # Check bottom row for 0 and 1
+            bottomRow = m[2, :]
+            if np.allclose(bottomRow, [0, 0, 1], atol=0):
+                return m
+            else:
+                # Correct the matrix
+                m[2, :] = [0, 0, 1]
+                return m
+    elif len(m) == 4:
+        rotationMatrix = m[:3, :3]
+        if check_SOn(rotationMatrix):
+            translationVector = m[:3, 3]
+            # Check bottom row for 0 and 1
+            bottomRow = m[3, :]
+            if np.allclose(bottomRow, [0, 0, 0, 1], atol=0):
+                return m
+            else:
+                # Correct the matrix
+                m[3, :] = [0, 0, 0, 1]
+                return m
+
+    return m
+
+if __name__ == '__main__':
+    m = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    print(check_SOn(m))
+    print(correct_SOn(m))
+
+    v = np.array([1, 0, 0, 0])
+    print(check_quaternion(v))
+    print(correct_quaternion(v))
+
+    m = np.array([[1, 0, 0, 1], [0, 1, 0, 2], [0, 0, 1, 3], [0, 0, 0, 1]])
+    print(check_SEn(m))
+    print(correct_SEn(m))
