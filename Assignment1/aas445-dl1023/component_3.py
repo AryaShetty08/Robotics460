@@ -31,7 +31,7 @@ def interpolate_rigid_body(start_pose, goal_pose):
      
      # Determine how many steps to take to reach goal, can change if needed
      # Figure out distance in 2d by dividing the length and iterating those steps 
-     steps = 10 
+     steps = 10
      
      path_x = np.linspace(x0, xG, steps)
      path_y = np.linspace(y0, yG, steps)
@@ -47,10 +47,12 @@ def interpolate_rigid_body(start_pose, goal_pose):
      # find angle
      angle_rel = np.arctan2(r_rel[1, 0], r_rel[0, 0])
 
-     for i in np.arange(0.1, 1.0, 0.1):
-          
+     for i in range(1, steps):
+
+          interpolation_fraction = i / (steps - 1)
+
           # get new angle
-          new_angle = i * angle_rel
+          new_angle = interpolation_fraction * angle_rel
 
           # apply matrix to r1
           new_matrix = np.array([[np.cos(new_angle), -np.sin(new_angle), 0], [np.sin(new_angle), np.cos(new_angle), 0], [0, 0, 1]])
@@ -59,7 +61,7 @@ def interpolate_rigid_body(start_pose, goal_pose):
           # get next angle for path 
           theta_interp = np.arctan2(r_interp[1, 0], r_interp[0 , 0])
 
-          path.append((path_x[int(i*steps)], path_y[int(i*steps)], theta_interp))
+          path.append((path_x[i], path_y[i], theta_interp))
 
      return path
 
@@ -174,7 +176,7 @@ def visualize_path(path):
           pose = path[frame]
           x, y, theta = pose
 
-          box.set_xy((x - robot_dim[0] / 2, y - robot_dim[1] /2))
+          box.set_xy((x - (robot_dim[0] / 2), y - (robot_dim[1] /2)))
           box.angle = theta * 180 / np.pi
 
           #ax.patches = [box]
@@ -213,9 +215,9 @@ def visualize_path(path):
 
 if __name__ == "__main__":
      start_pose =  (0, 0, 0)
-     end_pose = (4, 5, np.pi)
-     #print(interpolate_rigid_body(start_pose, end_pose))
-     #visualize_path(interpolate_rigid_body(start_pose, end_pose))
+     end_pose = (4, 5, np.pi/2)
+     print(interpolate_rigid_body(start_pose, end_pose))
+     visualize_path(interpolate_rigid_body(start_pose, end_pose))
 
      plan = [
      (1, 1, np.radians(45), 1), 
@@ -223,7 +225,7 @@ if __name__ == "__main__":
      (1, 0, 0, 2),   
      ]
      #print(forward_propagate_rigid_body(start_pose, plan))
-     visualize_path(forward_propagate_rigid_body(start_pose, plan))
+     #visualize_path(forward_propagate_rigid_body(start_pose, plan))
 
      example_path = [(0, 0, 0), (1, 1, 0.5), (2, 2, 1.0), (3, 3, 1.5), (4, 4, 2.0)]
 

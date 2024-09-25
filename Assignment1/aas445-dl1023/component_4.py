@@ -134,6 +134,7 @@ def forward_propagate_arm(start_pose, plan):
     """
      path = []
      theta1, theta2 = start_pose
+     path.append(f_kinematics(theta1, theta2))
 
      for velocity, duration in plan:
           
@@ -202,17 +203,17 @@ def visualize_path(path):
      start_button.on_clicked(start)
      pause_button.on_clicked(pause)
      
-     anim = FuncAnimation(fig, update, frames=len(path), interval=100, blit=True)
+     anim = FuncAnimation(fig, update, frames=len(path), interval=1000, blit=True)
      plt.legend()
      plt.show()
 
 if __name__ == "__main__":
-     start =  (np.radians(0), 0)
+     start =  (np.radians(0), np.radians(45))
      goal = (np.radians(270), 0)
 
      path = interpolate_arm(start, goal)
-     #visualize_path(path)
+     visualize_path(path)
 
-     plan = [((0, np.radians(90)), 2), ((0, np.radians(90)), 2)]
+     plan = [((0, np.radians(45)), 2), ((np.radians(45), np.radians(45)), 1)]
      new_path = forward_propagate_arm(start, plan)
      #visualize_path(new_path)
