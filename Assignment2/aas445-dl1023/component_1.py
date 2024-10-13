@@ -1,6 +1,9 @@
 import random
 import math
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from matplotlib.transforms import Affine2D
 
 def generate_environment(number_of_obstacles):
     """
@@ -124,16 +127,53 @@ def generate_environment(number_of_obstacles):
 
     return env
 
-
 def scene_to_file(env, filename):
+    with open(filename, "w") as f:
+        for item in env:
+            f.write(str(item) + "\n")
     return
 
 def scene_from_file(filename):
+    env = []
+
+    with open(filename, "r") as file:
+        for line in file:
+            line = line.strip().strip('()')
+            tupleValues = tuple(map(float, line.split(',')))
+            env.append(tupleValues)
+
+    print(env)
     return env
 
 def visualize_scene(env):
+
+    fig, ax = plt.subplots()
+    plt.subplots_adjust(bottom=0.2)
+
+    ax.set_xlim(0, 20)
+    ax.set_ylim(0, 20)
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('Environment Visualization')
+    ax.grid(True)
+
+    for obstacle in env:
+        x, y, theta, w, h = obstacle
+        t = Affine2D().rotate_around(x, y, theta) + ax.transData
+        rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='blue', alpha=0.5, transform=t)
+        ax.add_patch(rect)
+
+    plt.show()
+
     return
 
 if __name__ == "__main__":
     num = 2
+    testEnv = [(6.42, 11.25, 2.99, 1.55, 1.33), (7.83, 13.04, 2.53, 0.68, 1.07)]
+    testFilename = "test.txt"
+
     print(generate_environment(num))
+    scene_to_file(testEnv, testFilename)
+    scene_from_file(testFilename)
+    visualize_scene(testEnv)
