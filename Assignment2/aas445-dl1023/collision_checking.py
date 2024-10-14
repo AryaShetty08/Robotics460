@@ -52,50 +52,50 @@ def getProjection(axes, corners):
 
 def checkCollision(obstacle, env):
 
-        if len(env) == 0:
-            return False
-        
-        obsCorners = getCorners(obstacle)
+    if len(env) == 0:
+        return False
+    
+    obsCorners = getCorners(obstacle)
 
-        obsEdges = [(obsCorners[1][0] - obsCorners[0][0], obsCorners[1][1] - obsCorners[0][1]), 
-                    (obsCorners[2][0] - obsCorners[0][0], obsCorners[2][1] - obsCorners[0][1])]
-        indexHit = []
+    obsEdges = [(obsCorners[1][0] - obsCorners[0][0], obsCorners[1][1] - obsCorners[0][1]), 
+                (obsCorners[2][0] - obsCorners[0][0], obsCorners[2][1] - obsCorners[0][1])]
+    indexHit = []
 
-       
-        for i in range(len(env)):
-            checkCorners = getCorners(env[i])
-            checkEdges = [(checkCorners[1][0] - checkCorners[0][0], checkCorners[1][1] - checkCorners[0][1]),
-                           (checkCorners[2][0] - checkCorners[0][0], checkCorners[2][1] - checkCorners[0][1])]
+    
+    for i in range(len(env)):
+        checkCorners = getCorners(env[i])
+        checkEdges = [(checkCorners[1][0] - checkCorners[0][0], checkCorners[1][1] - checkCorners[0][1]),
+            (checkCorners[2][0] - checkCorners[0][0], checkCorners[2][1] - checkCorners[0][1])]
 
-            normalVectors = []
+        normalVectors = []
 
-            for j in range(len(obsEdges)):
-                mag = math.sqrt(math.pow(-obsEdges[j][1], 2) + math.pow(obsEdges[j][0], 2))
-                normalVectors.append((-obsEdges[j][1] / mag, obsEdges[j][0] / mag))
+        for j in range(len(obsEdges)):
+            mag = math.sqrt(math.pow(-obsEdges[j][1], 2) + math.pow(obsEdges[j][0], 2))
+            normalVectors.append((-obsEdges[j][1] / mag, obsEdges[j][0] / mag))
 
-            for j in range(len(checkEdges)):
-                mag = math.sqrt(math.pow(-checkEdges[j][1], 2) + math.pow(checkEdges[j][0], 2))
-                normalVectors.append((-checkEdges[j][1] / mag, checkEdges[j][0] / mag))
+        for j in range(len(checkEdges)):
+            mag = math.sqrt(math.pow(-checkEdges[j][1], 2) + math.pow(checkEdges[j][0], 2))
+            normalVectors.append((-checkEdges[j][1] / mag, checkEdges[j][0] / mag))
 
-            collision = True
-            # project the corners onto the axis
-            for j in range(len(normalVectors)):
-               min1, max1 = getProjection(normalVectors[j], checkCorners)
-               minObs, maxObs = getProjection(normalVectors[j], obsCorners) 
-               #print(normalVectors)
-               if max1 < minObs or maxObs < min1:
-                   collision = False
-                   break
-               
-            if collision:
-                print("Hit")
-                indexHit.append(i)
-               #check for collision here 
+        collision = True
+        # project the corners onto the axis
+        for j in range(len(normalVectors)):
+            min1, max1 = getProjection(normalVectors[j], checkCorners)
+            minObs, maxObs = getProjection(normalVectors[j], obsCorners) 
+            #print(normalVectors)
+            if max1 < minObs or maxObs < min1:
+                collision = False
+                break
+            
+        if collision:
+            print("Hit")
+            indexHit.append(i)
+            #check for collision here 
 
-            #normalVectors = normalVectors[:-2]
-            # get rid of last two vectors for the next two vectors that will appear
+        #normalVectors = normalVectors[:-2]
+        # get rid of last two vectors for the next two vectors that will appear
 
-        return indexHit
+    return indexHit
 
 def generate_obstacle(width, height):
     
@@ -130,9 +130,8 @@ def visualize_hits(robot, env, indexHit):
     for i in range(len(env)):
         x, y, theta, w, h = env[i]
         t = Affine2D().rotate_around(x, y, theta) + ax.transData
-        if not indexHit == None:
-            if i in indexHit:
-                rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='red', alpha=0.5, transform=t)
+        if i in indexHit:
+            rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='red', alpha=0.5, transform=t)
         else:
             rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='green', alpha=0.5, transform=t)
         ax.add_patch(rect)
@@ -155,7 +154,7 @@ def collision_checking(robot, map):
     if robot == "freeBody":
         for n in range(10):
             obstacle = generate_obstacle(0.5, 0.3)
-            indexHit = collision_checking(obstacle, map)
+            indexHit = checkCollision(obstacle, map)
             print(indexHit)
             visualize_hits(obstacle, map, indexHit)
             print(f"{n}: {obstacle}\n")

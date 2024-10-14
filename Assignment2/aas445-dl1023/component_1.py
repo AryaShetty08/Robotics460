@@ -85,17 +85,19 @@ def generate_environment(number_of_obstacles):
         
         obsCorners = getCorners(obstacle)
 
-        obsEdges = [(obsCorners[1][0] - obsCorners[0][0], obsCorners[1][1] - obsCorners[0][1]), (obsCorners[2][0] - obsCorners[0][0], obsCorners[2][1] - obsCorners[0][1])]
-        normalVectors = []
-
-        for i in range(len(obsEdges)):
-            mag = math.sqrt(math.pow(-obsEdges[i][1], 2) + math.pow(obsEdges[i][0], 2))
-            normalVectors.append((-obsEdges[i][1] / mag, obsEdges[i][0] / mag))
+        obsEdges = [(obsCorners[1][0] - obsCorners[0][0], obsCorners[1][1] - obsCorners[0][1]),
+                     (obsCorners[2][0] - obsCorners[0][0], obsCorners[2][1] - obsCorners[0][1])]
             
-       
         for i in range(len(env)):
             checkCorners = getCorners(env[i])
-            checkEdges = [(checkCorners[1][0] - checkCorners[0][0], checkCorners[1][1] - checkCorners[0][1]), (checkCorners[2][0] - checkCorners[0][0], checkCorners[2][1] - checkCorners[0][1])]
+            checkEdges = [(checkCorners[1][0] - checkCorners[0][0], checkCorners[1][1] - checkCorners[0][1]),
+                           (checkCorners[2][0] - checkCorners[0][0], checkCorners[2][1] - checkCorners[0][1])]
+
+            normalVectors = []
+
+            for j in range(len(obsEdges)):
+                mag = math.sqrt(math.pow(-obsEdges[j][1], 2) + math.pow(obsEdges[j][0], 2))
+                normalVectors.append((-obsEdges[j][1] / mag, obsEdges[j][0] / mag))
 
             for j in range(len(checkEdges)):
                 mag = math.sqrt(math.pow(-checkEdges[j][1], 2) + math.pow(checkEdges[j][0], 2))
@@ -112,7 +114,7 @@ def generate_environment(number_of_obstacles):
                    return True
                #check for collision here 
 
-            normalVectors = normalVectors[:-2]
+            #normalVectors = normalVectors[:-2]
             # get rid of last two vectors for the next two vectors that will appear
 
         return False
