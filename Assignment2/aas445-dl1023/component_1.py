@@ -107,13 +107,15 @@ def generate_environment(number_of_obstacles):
                minObs, maxObs = getProjection(normalVectors[j], obsCorners) 
                print(normalVectors)
                if max1 < minObs or maxObs < min1:
-                   return False
+                   continue
+               else:
+                   return True
                #check for collision here 
 
             normalVectors = normalVectors[:-2]
             # get rid of last two vectors for the next two vectors that will appear
 
-        return True
+        return False
 
 
     for i in range(number_of_obstacles):
@@ -169,11 +171,11 @@ def visualize_scene(env):
     return
 
 if __name__ == "__main__":
-    num = 2
+    num = 10
     testEnv = [(6.42, 11.25, 2.99, 1.55, 1.33), (7.83, 13.04, 2.53, 0.68, 1.07)]
     testFilename = "test.txt"
 
     print(generate_environment(num))
-    scene_to_file(testEnv, testFilename)
-    scene_from_file(testFilename)
-    visualize_scene(testEnv)
+    #scene_to_file(testEnv, testFilename)
+    #scene_from_file(testFilename)
+    #visualize_scene(testEnv)
