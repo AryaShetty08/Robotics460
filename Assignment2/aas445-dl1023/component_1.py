@@ -177,7 +177,7 @@ if __name__ == "__main__":
     testEnv = [(6.42, 11.25, 2.99, 1.55, 1.33), (7.83, 13.04, 2.53, 0.68, 1.07)]
     testFilename = "test.txt"
 
-    print(generate_environment(num))
-    #scene_to_file(testEnv, testFilename)
+    #print(generate_environment(num))
+    scene_to_file(generate_environment(num), testFilename)
     #scene_from_file(testFilename)
     #visualize_scene(testEnv)
