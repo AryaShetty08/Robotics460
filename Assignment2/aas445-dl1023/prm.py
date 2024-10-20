@@ -53,6 +53,32 @@ def getProjection(axes, corners):
 
     return min_val, max_val
 
+# Link lengths from 1st assignment 
+L1 = 2  
+L2 = 1.5  
+
+def f_kinematics(theta1, theta2):
+    """
+    Computes the world space positions of robot arms' joints and end-effector.
+
+    Input:
+    - theta1: Angle of the first link
+    - theta2: Angle of the second link
+
+    Returns:
+    - tuple: Contains relative positions of (base to joint1), (joint1 to joint2), and final positions
+    """
+    # Joint 1 (based on base)
+    x1 = L1 * np.cos(theta1)
+    y1 = L1 * np.sin(theta1)
+
+    # Joint 2 (based on joint 1)
+    x2 = x1 + L2 * np.cos(theta1 + theta2)
+    y2 = y1 + L2 * np.sin(theta1 + theta2)
+
+    # Return (joint1, joint2, end-effector)
+    return (0, 0), (x1, y1), (x2, y2)
+
 def checkCollision(obstacle, env):
     if len(env) == 0:
         return False
@@ -91,6 +117,21 @@ def checkCollision(obstacle, env):
 
     return False
 
+# Necessary for arm robot, treating the links as segments to check for collisions
+def checkCollision_arm(theta1, theta2, polygons):
+    base, joint1, joint2 = f_kinematics(theta1, theta2)
+ 
+    for polygon in polygons:
+        obsCorners = getCorners(polygon)
+        for i in range(len(obsCorners)):
+            next_i = (i + 1) % len(obsCorners)
+            # Check if arm links intersect with obstacle edges
+            if is_intersecting_line(base, joint1, obsCorners[i], obsCorners[next_i]) or \
+               is_intersecting_line(joint1, joint2, obsCorners[i], obsCorners[next_i]):
+                return True
+    return False
+
+
 # PRM part of code, and creating the path 
 def euclidean_distance(p1, p2):
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
@@ -104,7 +145,7 @@ def find_k_nearest_neighbors(node, nodes, k):
 # Sampling random points in space 
 def generate_random_node(robot_type):
     if robot_type == 'arm':
-        return (random.uniform(0, 2 * math.pi), random.uniform(0, 2 * math.pi))  # Joint angles for the arm
+        return (random.uniform(0, math.pi), random.uniform(-math.pi /2, math.pi / 2))  # Joint angles for the arm
     elif robot_type == 'freeBody':
         return (random.uniform(0, 20), random.uniform(0, 20), random.uniform(-math.pi, math.pi))  # Pose for freeBody
 
@@ -160,11 +201,12 @@ def prm_planner(start, goal, robot_type, polygons, num_nodes=500, k=6):
         if robot_type == "freeBody":
             # add the width and height for collision checking
             robot_config = (*node, 0.5, 0.3)
-        else:
-            robot_config = node
-
-        if not checkCollision(robot_config, polygons):
-            nodes.append(node)
+            if not checkCollision(robot_config, polygons):
+                nodes.append(node)
+        elif robot_type == "arm":
+            theta1, theta2 = node
+            if not checkCollision_arm(theta1, theta2, polygons):
+                nodes.append(node)
     
     edges = []
     
@@ -175,13 +217,18 @@ def prm_planner(start, goal, robot_type, polygons, num_nodes=500, k=6):
             if robot_type == "freeBody":
                 robot_node = (*node, 0.5, 0.3)
                 robot_neighbor = (*neighbor, 0.5, 0.3)
-            else:
-                robot_node, robot_neighbor = node, neighbor
+                if not checkCollision(robot_node, polygons) and not checkCollision(robot_neighbor, polygons):
+                    # remeber to checkif the line crosses an obstacle 
+                    if not connection_collision(node, neighbor, polygons):
+                        edges.append((node, neighbor))
+            elif robot_type == "arm":
+                theta1_node, theta2_node = node
+                theta1_neighbor, theta2_neighbor = neighbor
+                if not checkCollision_arm(theta1_node, theta2_node, polygons) and \
+                not checkCollision_arm(theta1_neighbor, theta2_neighbor, polygons):
+                    if not connection_collision(node, neighbor, polygons):
+                        edges.append((node,neighbor))
 
-            if not checkCollision(robot_node, polygons) and not checkCollision(robot_neighbor, polygons):
-                # remeber to checkif the line crosses an obstacle 
-                if not connection_collision(node, neighbor, polygons):
-                    edges.append((node, neighbor))
     
     return nodes, edges
 
@@ -236,7 +283,7 @@ def scene_from_file(filename):
 
 
 # Visualization of PRM 
-def visualize_prm(nodes, edges, polygons, path=None):
+def visualize_prm(nodes, edges, polygons, robot_type, path=None):
     fig, ax = plt.subplots()
     
     # Plot obstacles
@@ -260,31 +307,38 @@ def visualize_prm(nodes, edges, polygons, path=None):
 
     #plt.show()
 
+    def animate_robot(fig, ax, path, robot_type):
+        if robot_type == 'freeBody':
+            width, height = 0.5, 0.3
+            robot_shape = patches.Rectangle((0, 0), width, height, angle=0, color='blue', alpha=0.5)
+            ax.add_patch(robot_shape)
+        else:  # arm
+            link1, = ax.plot([], [], 'b-', linewidth=4)
+            link2, = ax.plot([], [], 'r-', linewidth=4)
+        
+        def update(frame):
+            if frame < len(path):
+                if robot_type == 'freeBody':
+                    x, y, theta = path[frame] 
+                    robot_shape.set_xy((x, y)) 
+                    robot_shape.angle = np.degrees(theta)
+                    return robot_shape,
+                else:  # arm
+                    theta1, theta2 = path[frame]
+                    base, joint1, joint2 = f_kinematics(theta1, theta2)
+                    link1.set_data([base[0], joint1[0]], [base[1], joint1[1]])
+                    link2.set_data([joint1[0], joint2[0]], [joint1[1], joint2[1]])
+                    return link1, link2
+
+        ani = animation.FuncAnimation(fig, update, frames=len(path), interval=1000, blit=True)
+        return ani
+    
+    anim = animate_robot(fig, ax, path, robot_type)
+    plt.show()
+            
     return fig, ax
 
-def animate_robot(fig, ax, path, robot_type):
-    if robot_type == 'freeBody':
-        width, height = 0.5, 0.3
-        robot_shape = patches.Rectangle((0, 0), width, height, angle=0, color='blue', alpha=0.5)
-    else:  # arm
-        robot_shape = patches.Arrow(0, 0, 0.1, 0.2, color='blue', width=0.05)
 
-    ax.add_patch(robot_shape)
-    
-    def update(frame):
-        if frame < len(path):
-            if robot_type == 'freeBody':
-                x, y, _ = path[frame] 
-                robot_shape.set_xy((x - width / 2, y - height / 2)) 
-            else:  # arm
-                theta1, theta2 = path[frame]
-    
-                robot_shape.set_positions((0, 0)) 
-
-        return robot_shape,
-
-    ani = animation.FuncAnimation(fig, update, frames=len(path), interval=200, blit=True)
-    #plt.show()
 
 # Argument Parser for running PRM from input
 def parse_args():
@@ -294,7 +348,6 @@ def parse_args():
     parser.add_argument('--goal', type=float, nargs='+', required=True)
     parser.add_argument('--map', type=str, required=True)
     return parser.parse_args()
-
 
 
 if __name__ == "__main__":
@@ -309,6 +362,6 @@ if __name__ == "__main__":
     # Get path using dijkstra
     path = dijkstra(nodes, edges, tuple(args.start), tuple(args.goal))
 
-    fig, ax = visualize_prm(nodes, edges, polygons, path)
-    animate_robot(fig, ax, path, args.robot)
-    plt.show()
+    fig, ax = visualize_prm(nodes, edges, polygons, args.robot, path)
+    print("animate")
+    #animate_robot(fig, ax, path, args.robot)
