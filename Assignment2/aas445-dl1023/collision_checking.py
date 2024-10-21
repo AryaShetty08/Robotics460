@@ -150,7 +150,7 @@ def collision_checking(robot, map):
     Returns:
     - Visualization of robot either colliding with obstacles or not
     """
-    #not sure how to arm??
+
     if robot == "freeBody":
         for n in range(10):
             obstacle = generate_obstacle(0.5, 0.3)
@@ -159,9 +159,13 @@ def collision_checking(robot, map):
             visualize_hits(obstacle, map, indexHit)
             print(f"{n}: {obstacle}\n")
     elif robot == "arm":
-        return
-    
-    return
+        # the implementation shouldn't be any different(?) cause the required generated obstacle is the same for both
+        for n in range(10):
+            obstacle = generate_obstacle(0.5, 0.3)
+            indexHit = checkCollision(obstacle, map)
+            print(indexHit)
+            visualize_hits(obstacle, map, indexHit)
+            print(f"{n}: {obstacle}\n")
 
 if __name__ == "__main__":
     testBot = "freeBody"
