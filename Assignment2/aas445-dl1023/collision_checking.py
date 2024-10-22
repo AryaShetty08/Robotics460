@@ -109,33 +109,53 @@ def generate_obstacle(width, height):
     
     return (x,y,theta,w,h)
 
-def visualize_hits(robot, env, indexHit):
-    # do i need to visualize robot too?
-    fig, ax = plt.subplots()
-    plt.subplots_adjust(bottom=0.2)
+# Different generation of configs for arm robots
+def generate_arm_configs():
+    l1, l2 = 2.0, 1.5 
+    theta1 = random.uniform(0, 2*math.pi)
+    theta2 = random.uniform(0, 2*math.pi)
+    
+    x = l1 * math.cos(theta1) + l2 * math.cos(theta1 + theta2)
+    y = l1 * math.sin(theta1) + l2 * math.sin(theta1 + theta2)
+    
+    # Use the joint angle sum for the rectangle orientation
+    theta = theta1 + theta2
+    
+    return (x + 10, y + 10, theta, 0.5, 0.3)  # Centered in workspace so not at origin because it would be negative possibly
 
+def visualize_all_configs(configs, env, all_hits):
+    fig, ax = plt.subplots(figsize=(12, 12))
     ax.set_xlim(0, 20)
     ax.set_ylim(0, 20)
-
+    
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
-    ax.set_title('Collision Visualization')
+    ax.set_title('All Configurations Collision Visualization')
     ax.grid(True)
-
-    x, y, theta, w, h = robot
-    t = Affine2D().rotate_around(x, y, theta) + ax.transData
-    rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='blue', alpha=0.5, transform=t)
-    ax.add_patch(rect)
-
-    for i in range(len(env)):
-        x, y, theta, w, h = env[i]
+    
+    # Plot environment obstacles
+    for i, obstacle in enumerate(env):
+        x, y, theta, w, h = obstacle
+        color = 'green'  # Default color
+        
+        # Check if this obstacle was hit in any configuration
+        for hits in all_hits:
+            if i in hits:
+                color = 'red'
+                break
+                
         t = Affine2D().rotate_around(x, y, theta) + ax.transData
-        if i in indexHit:
-            rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='red', alpha=0.5, transform=t)
-        else:
-            rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='green', alpha=0.5, transform=t)
+        rect = patches.Rectangle((x-w/2, y-h/2), w, h, color=color, alpha=0.5, transform=t)
         ax.add_patch(rect)
-
+    
+    # Plot all robot configurations with different alpha values
+    for i, robot in enumerate(configs):
+        x, y, theta, w, h = robot
+        t = Affine2D().rotate_around(x, y, theta) + ax.transData
+        alpha = 0.3 + (0.7 * i / len(configs))  # Varying transparency
+        rect = patches.Rectangle((x-w/2, y-h/2), w, h, color='blue', alpha=alpha, transform=t)
+        ax.add_patch(rect)
+    
     plt.show()
 
 def collision_checking(robot, map):
@@ -151,21 +171,22 @@ def collision_checking(robot, map):
     - Visualization of robot either colliding with obstacles or not
     """
 
-    if robot == "freeBody":
-        for n in range(10):
+    configs = []
+    all_hits = []
+    
+    for n in range(10):
+        if robot == "freeBody":
             obstacle = generate_obstacle(0.5, 0.3)
-            indexHit = checkCollision(obstacle, map)
-            print(indexHit)
-            visualize_hits(obstacle, map, indexHit)
-            print(f"{n}: {obstacle}\n")
-    elif robot == "arm":
-        # the implementation shouldn't be any different(?) cause the required generated obstacle is the same for both
-        for n in range(10):
-            obstacle = generate_obstacle(0.5, 0.3)
-            indexHit = checkCollision(obstacle, map)
-            print(indexHit)
-            visualize_hits(obstacle, map, indexHit)
-            print(f"{n}: {obstacle}\n")
+        else:  # arm
+            obstacle = generate_arm_configs()
+            
+        configs.append(obstacle)
+        hits = checkCollision(obstacle, map)
+        all_hits.append(hits)
+        print(f"Configuration {n}: {obstacle}")
+        print(f"Collisions with obstacles: {hits}\n")
+    
+    visualize_all_configs(configs, map, all_hits)
 
 if __name__ == "__main__":
     testBot = "freeBody"
@@ -173,4 +194,9 @@ if __name__ == "__main__":
                (17.37, 2.0, 1.55, 0.58, 1.88), (5.92, 14.2, 4.18, 0.72, 0.64), (9.77, 18.92, 2.61, 0.67, 0.85), 
                (1.05, 11.62, 3.33, 1.63, 0.97), (19.58, 10.42, 5.48, 0.72, 1.05), (7.72, 0.93, 1.33, 1.76, 0.74), (14.36, 18.27, 5.43, 1.31, 1.03)]
     
-    collision_checking(testBot, testEnv)
+    # Test both robot types
+    print("Testing freeBody robot:")
+    collision_checking("freeBody", testEnv)
+    
+    print("\nTesting arm robot:")
+    collision_checking("arm", testEnv)

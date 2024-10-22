@@ -20,6 +20,9 @@ def generate_environment(number_of_obstacles):
 
     # store all the obstacles 
     env = []
+    
+    if number_of_obstacles < 0:
+        raise ValueError("Number of obstacles must be non-negative")
 
     def generate_obstacle():
         
@@ -107,7 +110,7 @@ def generate_environment(number_of_obstacles):
             for j in range(len(normalVectors)):
                min1, max1 = getProjection(normalVectors[j], checkCorners)
                minObs, maxObs = getProjection(normalVectors[j], obsCorners) 
-               print(normalVectors)
+               #rint(normalVectors)
                if max1 < minObs or maxObs < min1:
                    continue
                else:
