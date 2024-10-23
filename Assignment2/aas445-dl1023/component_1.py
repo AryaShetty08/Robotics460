@@ -20,7 +20,7 @@ def generate_environment(number_of_obstacles):
 
     # store all the obstacles 
     env = []
-    
+
     if number_of_obstacles < 0:
         raise ValueError("Number of obstacles must be non-negative")
 
@@ -176,11 +176,12 @@ def visualize_scene(env):
     return
 
 if __name__ == "__main__":
-    num = 10
+    num = 15
     testEnv = [(6.42, 11.25, 2.99, 1.55, 1.33), (7.83, 13.04, 2.53, 0.68, 1.07)]
-    testFilename = "test.txt"
+    filename = "Env5.txt"
 
     #print(generate_environment(num))
-    scene_to_file(generate_environment(num), testFilename)
+    #scene_to_file(generate_environment(num), filename)
+    visualize_scene(scene_from_file(filename))
     #scene_from_file(testFilename)
-    #visualize_scene(testEnv)
+    #visualize_scene(generate_environment(num))
