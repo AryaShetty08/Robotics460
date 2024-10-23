@@ -1,3 +1,4 @@
+import argparse
 import random
 import math
 import numpy as np
@@ -173,6 +174,8 @@ def collision_checking(robot, map):
 
     configs = []
     all_hits = []
+
+    map = load_map(map)
     
     for n in range(10):
         if robot == "freeBody":
@@ -188,15 +191,41 @@ def collision_checking(robot, map):
     
     visualize_all_configs(configs, map, all_hits)
 
+def load_map(filename):
+    """
+    Load the map from a file
+
+    Input:
+    - filename - Name of the file to load the map from
+
+    Returns:
+    - List of obstacles in the map
+    """
+    env = []
+    with open(filename, 'r') as f:
+        for line in f:
+            line = line.strip().strip('()').split(',')
+            x, y, theta, w, h = [float(i) for i in line]
+            env.append((x, y, theta, w, h))
+    return env
+
 if __name__ == "__main__":
-    testBot = "freeBody"
-    testEnv = [(4.94, 5.36, 3.29, 1.37, 1.87), (14.77, 11.11, 2.41, 1.14, 1.55), (6.61, 9.62, 5.21, 0.78, 1.53), 
-               (17.37, 2.0, 1.55, 0.58, 1.88), (5.92, 14.2, 4.18, 0.72, 0.64), (9.77, 18.92, 2.61, 0.67, 0.85), 
-               (1.05, 11.62, 3.33, 1.63, 0.97), (19.58, 10.42, 5.48, 0.72, 1.05), (7.72, 0.93, 1.33, 1.76, 0.74), (14.36, 18.27, 5.43, 1.31, 1.03)]
+    # testBot = "freeBody"
+    # testEnv = [(4.94, 5.36, 3.29, 1.37, 1.87), (14.77, 11.11, 2.41, 1.14, 1.55), (6.61, 9.62, 5.21, 0.78, 1.53), 
+    #            (17.37, 2.0, 1.55, 0.58, 1.88), (5.92, 14.2, 4.18, 0.72, 0.64), (9.77, 18.92, 2.61, 0.67, 0.85), 
+    #            (1.05, 11.62, 3.33, 1.63, 0.97), (19.58, 10.42, 5.48, 0.72, 1.05), (7.72, 0.93, 1.33, 1.76, 0.74), (14.36, 18.27, 5.43, 1.31, 1.03)]
     
-    # Test both robot types
-    print("Testing freeBody robot:")
-    collision_checking("freeBody", testEnv)
+    # # Test both robot types
+    # print("Testing freeBody robot:")
+    # collision_checking("freeBody", testEnv)
     
-    print("\nTesting arm robot:")
-    collision_checking("arm", testEnv)
+    # print("\nTesting arm robot:")
+    # collision_checking("arm", testEnv)
+
+    parser = argparse.ArgumentParser(description='Collision Checking')
+    parser.add_argument('--robot', type=str, choices=['arm', 'freeBody'], required=True)
+    parser.add_argument('--map', type=str, required=True)
+
+    args = parser.parse_args()
+
+    collision_checking(args.robot, args.map)
