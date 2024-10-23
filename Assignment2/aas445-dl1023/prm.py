@@ -704,12 +704,12 @@ def main():
     print("Visualizing roadmap...")
     planner.visualize_roadmap()
 
-    # Animate roadmap
-    print("Animating roadmap...")
-    try:
-        planner.animate_roadmap()
-    except Exception as e:
-        print(f"Error animating roadmap: {e}")
+    # # Animate roadmap
+    # print("Animating roadmap...")
+    # try:
+    #     planner.animate_roadmap()
+    # except Exception as e:
+    #     print(f"Error animating roadmap: {e}")
     
     # Plan path
     print("Planning path...")
