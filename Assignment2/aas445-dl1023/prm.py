@@ -288,15 +288,15 @@ class PRMPlanner:
             print("C-space visualization is only available for robotic arms")
             return
             
-        fig, ax2 = plt.subplots(figsize=(10, 10))
+        fig, ax = plt.subplots(figsize=(10, 10))
 
         # Setup C-space plot (right)
-        ax2.set_title('Configuration Space')
-        ax2.set_xlim(-np.pi, np.pi)
-        ax2.set_ylim(-np.pi, np.pi)
-        ax2.set_xlabel('θ1')
-        ax2.set_ylabel('θ2')
-        ax2.grid(True)
+        ax.set_title('Configuration Space')
+        ax.set_xlim(-np.pi, np.pi)
+        ax.set_ylim(-np.pi, np.pi)
+        ax.set_xlabel('θ1')
+        ax.set_ylabel('θ2')
+        ax.grid(True)
         
         # Pre-compute C-space obstacles through sampling
         resolution = 50
@@ -311,7 +311,7 @@ class PRMPlanner:
                     cspace_obstacles[j, i] = 1
         
         # Plot C-space obstacles
-        ax2.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
+        ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
                 origin='lower', cmap='YlOrRd', alpha=0.5)
         
         # Pre-compute node configurations and edges
@@ -329,18 +329,18 @@ class PRMPlanner:
         
         def update(frame):
             # Clear previous frame
-            ax2.clear()
+            ax.clear()
             
             # Reset plot settings            
-            ax2.set_title('Configuration Space')
-            ax2.set_xlim(-np.pi, np.pi)
-            ax2.set_ylim(-np.pi, np.pi)
-            ax2.set_xlabel('θ1')
-            ax2.set_ylabel('θ2')
-            ax2.grid(True)
+            ax.set_title('Configuration Space')
+            ax.set_xlim(-np.pi, np.pi)
+            ax.set_ylim(-np.pi, np.pi)
+            ax.set_xlabel('θ1')
+            ax.set_ylabel('θ2')
+            ax.grid(True)
             
             # Plot C-space obstacles
-            ax2.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
+            ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
                     origin='lower', cmap='YlOrRd', alpha=0.5)
             
             # Calculate how many nodes to show in this frame
@@ -348,7 +348,7 @@ class PRMPlanner:
             
             # Plot visible nodes in C-space
             visible_configs = node_configs[:current_index+1]
-            ax2.scatter(visible_configs[:, 0], visible_configs[:, 1], 
+            ax.scatter(visible_configs[:, 0], visible_configs[:, 1], 
                     c='b', s=20, alpha=0.6)
             
             # Plot visible edges in C-space
@@ -356,16 +356,16 @@ class PRMPlanner:
                 if i <= current_index and j <= current_index:
                     config1 = node_configs[i]
                     config2 = node_configs[j]
-                    ax2.plot([config1[0], config2[0]], 
+                    ax.plot([config1[0], config2[0]], 
                             [config1[1], config2[1]], 
                             'k-', alpha=0.2)
             
             # Highlight start and goal configurations
-            ax2.scatter([self.start_config[0]], [self.start_config[1]], 
+            ax.scatter([self.start_config[0]], [self.start_config[1]], 
                     c='g', s=100, label='Start')
-            ax2.scatter([self.goal_config[0]], [self.goal_config[1]], 
+            ax.scatter([self.goal_config[0]], [self.goal_config[1]], 
                     c='r', s=100, label='Goal')
-            ax2.legend()
+            ax.legend()
             
             plt.suptitle(f'Frame {frame+1}/{n_frames}')
         
@@ -382,20 +382,6 @@ class PRMPlanner:
         else:
             update(n_frames-1)
             plt.show()
-
-    def compute_cspace_obstacles(self, resolution=50):
-        """Compute C-space obstacles through sampling"""
-        theta1_range = np.linspace(-np.pi, np.pi, resolution)
-        theta2_range = np.linspace(-np.pi, np.pi, resolution)
-        cspace_obstacles = np.zeros((resolution, resolution))
-        
-        for i, theta1 in enumerate(theta1_range):
-            for j, theta2 in enumerate(theta2_range):
-                config = np.array([theta1, theta2])
-                if self.check_config_collision(config):
-                    cspace_obstacles[j, i] = 1
-                    
-        return cspace_obstacles
 
     def _min_obstacle_distance(self, corners):
         """Calculate minimum distance from polygon corners to any obstacle"""
