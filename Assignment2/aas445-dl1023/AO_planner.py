@@ -4,6 +4,7 @@ from matplotlib.animation import FuncAnimation
 import argparse
 import random
 from matplotlib.patches import Rectangle
+import time
 
 class Node:
     def __init__(self, config):
@@ -312,8 +313,8 @@ class RRTStarPlanner:
     def random_config(self):
         """Generate a random configuration with improved C-space sampling."""
         if len(self.nodes) > 0:
-            # 30% chance to sample near existing nodes
-            if random.random() < 0.3:
+            # 0% chance to sample near existing nodes
+            if random.random() < -1:
                 random_node = random.choice(self.nodes)
                 if self.robot_type == "arm":
                     # Sample in joint angle space
@@ -328,8 +329,8 @@ class RRTStarPlanner:
                         random_node.config[2] + angle_noise
                     ])
             
-            # 20% chance to sample towards goal
-            elif random.random() < 0.2:
+            # 5% chance to sample towards goal
+            elif random.random() < 0.05:
                 t = random.random()
                 if self.robot_type == "arm":
                     # Interpolate joint angles
@@ -529,12 +530,13 @@ class RRTStarPlanner:
 
     def build_tree(self, max_iterations=10000):
         """Build the RRT* tree with improved progress tracking."""
+        start_time = time.time()
         iteration = 0
         best_cost = float('inf')
         
         while iteration < max_iterations:
             # Goal biasing
-            if random.random() < 0.1:  # Reduced goal bias for better exploration
+            if random.random() < 0.05:  # Reduced goal bias for better exploration
                 random_config = self.goal_config
             else:
                 random_config = self.random_config()
@@ -559,9 +561,11 @@ class RRTStarPlanner:
                 path = self.get_path()
                 if self.validate_path(path):
                     print(f"Valid path found after {iteration} iterations with cost {self.goal_node.cost:.3f}")
+                    print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
                     return True
         
         print(f"Max iterations ({max_iterations}) reached")
+        print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
         return self.goal_node is not None
 
     def validate_path(self, path):

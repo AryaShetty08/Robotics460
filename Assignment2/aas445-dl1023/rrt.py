@@ -4,6 +4,7 @@ from matplotlib.animation import FuncAnimation
 import argparse
 import random
 from matplotlib.patches import Rectangle
+import time
 
 class Node:
     def __init__(self, config):
@@ -248,8 +249,8 @@ class RRTPlanner:
     def random_config(self):
         """Generate a random configuration with improved C-space sampling."""
         if len(self.nodes) > 0:
-            # 30% chance to sample near existing nodes
-            if random.random() < 0.3:
+            # 0% chance to sample near existing nodes
+            if random.random() < -1:
                 random_node = random.choice(self.nodes)
                 if self.robot_type == "arm":
                     # Sample in joint angle space
@@ -264,8 +265,8 @@ class RRTPlanner:
                         random_node.config[2] + angle_noise
                     ])
             
-            # 20% chance to sample towards goal
-            elif random.random() < 0.2:
+            # 5% chance to sample towards goal
+            elif random.random() < 0.05:
                 t = random.random()
                 if self.robot_type == "arm":
                     # Interpolate joint angles
@@ -417,6 +418,7 @@ class RRTPlanner:
 
     def build_tree(self, max_iterations=10000):
         """Build the RRT with improved progress tracking and visualization."""
+        start_time = time.time()
         iteration = 0
         stall_count = 0
         last_best_dist = float('inf')
@@ -484,6 +486,7 @@ class RRTPlanner:
                         final_dist = np.linalg.norm(self.goal_node.config[:2] - self.goal_config[:2])
                     print(f"Goal reached after {iteration} iterations!")
                     print(f"Final distance to goal: {final_dist:.3f}")
+                    print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
                     return True
                 else:
                     print("Invalid path detected, continuing search...")
@@ -495,6 +498,7 @@ class RRTPlanner:
                 print(f"Max iterations ({max_iterations}) reached without finding goal")
                 if best_node:
                     print(f"Best distance achieved: {best_dist:.3f}")
+                print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
                 return False
 
     def get_path(self):

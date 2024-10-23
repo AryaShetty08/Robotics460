@@ -5,6 +5,7 @@ import argparse
 import random
 from scipy.spatial import KDTree
 import heapq
+import time
 
 class Node:
     def __init__(self, config):
@@ -220,9 +221,11 @@ class PRMPlanner:
                      [np.sin(theta), np.cos(theta)]])
         return np.dot(corners_local, R.T) + np.array([x, y])
 
-    def build_roadmap(self, n_samples=5000, k=8):  # Increased k from 6
+    def build_roadmap(self, n_samples=5000, k=6):  # Increased k from 6
         print("Building roadmap...")
-        
+        start_time = time.time()
+
+        sampling_start = time.time()
         # Add start and goal with extra validation
         if self.check_config_collision(self.start_config):
             raise ValueError("Start configuration is in collision!")
@@ -250,10 +253,13 @@ class PRMPlanner:
                 else:
                     configs.append(config)
             attempts += 1
+
+        print(f"Sampling time: {time.time() - sampling_start:.3f} seconds")
             
         if len(configs) < n_samples * 0.5:  # At least 50% of desired samples
             print(f"Warning: Only generated {len(configs)} valid configurations")
             
+        connection_start = time.time()    
         # Create nodes and build connections
         for config in configs:
             self.nodes.append(Node(config))
@@ -282,6 +288,9 @@ class PRMPlanner:
             self.improve_connectivity(k * 2)  # Try with more neighbors
             if not self.verify_connectivity():
                 print("Warning: Failed to connect start and goal configurations")
+
+        print(f"Connection time: {time.time() - connection_start:.3f} seconds")
+        print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
 
     def animate_roadmap(self, show_animation=True, n_frames=100):
         if self.robot_type != "arm":
@@ -439,6 +448,8 @@ class PRMPlanner:
                             neighbor.neighbors.append((node, dist))
 
     def plan(self):
+        start_time = time.time()
+
         path = self.a_star()
         if path is None:
             print("No path found in A*!")
@@ -448,6 +459,7 @@ class PRMPlanner:
             return path
             
         smoothed_path = self.smooth_path(path)
+        print(f"Total planning time: {time.time() - start_time:.3f} seconds")
         print(f"Path length: Original = {len(path)}, Smoothed = {len(smoothed_path)}")
         return smoothed_path
 
