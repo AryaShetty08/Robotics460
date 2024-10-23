@@ -121,13 +121,13 @@ if __name__ == "__main__":
             "robot": "arm",
             "target": (np.pi/4, np.pi/3),
             "k": 3,
-            "configs": "configs.txt"
+            "configs": "configs2arm.txt"
         },
         {
             "robot": "freebody",
             "target": (0.5, 0.5, np.pi/4),
             "k": 3,
-            "configs": "configs.txt"
+            "configs": "configs1.txt"
         }
     ]
     
