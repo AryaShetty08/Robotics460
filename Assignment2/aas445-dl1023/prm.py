@@ -72,7 +72,7 @@ class PRMPlanner:
         if self.robot_type == "arm":
             diff = np.abs(config1 - config2)
             diff = np.minimum(diff, 2*np.pi - diff)
-            return np.sum(diff * np.array([1.0, 0.5, 0.0]))  # Weight second joint less
+            return np.sum(diff * np.array([1.0, 0.5]))  # Weight second joint less
         else:
             pos_dist = np.linalg.norm(config1[:2] - config2[:2])
             angle_diff = abs(config1[2] - config2[2])
@@ -220,7 +220,7 @@ class PRMPlanner:
                      [np.sin(theta), np.cos(theta)]])
         return np.dot(corners_local, R.T) + np.array([x, y])
 
-    def build_roadmap(self, n_samples=1000, k=8):  # Increased k from 6
+    def build_roadmap(self, n_samples=5000, k=8):  # Increased k from 6
         print("Building roadmap...")
         
         # Add start and goal with extra validation
@@ -378,7 +378,7 @@ class PRMPlanner:
                 blit=False,
                 cache_frame_data=False
             )
-            plt.show(block=True)
+            plt.show()
         else:
             update(n_frames-1)
             plt.show()
