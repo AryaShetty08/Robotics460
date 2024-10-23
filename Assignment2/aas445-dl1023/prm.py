@@ -72,7 +72,7 @@ class PRMPlanner:
         if self.robot_type == "arm":
             diff = np.abs(config1 - config2)
             diff = np.minimum(diff, 2*np.pi - diff)
-            return np.sum(diff * np.array([1.0, 0.5]))  # Weight second joint less
+            return np.sum(diff * np.array([1.0, 0.5, 0.0]))  # Weight second joint less
         else:
             pos_dist = np.linalg.norm(config1[:2] - config2[:2])
             angle_diff = abs(config1[2] - config2[2])
@@ -283,6 +283,120 @@ class PRMPlanner:
             if not self.verify_connectivity():
                 print("Warning: Failed to connect start and goal configurations")
 
+    def animate_roadmap(self, show_animation=True, n_frames=100):
+        if self.robot_type != "arm":
+            print("C-space visualization is only available for robotic arms")
+            return
+            
+        fig, ax2 = plt.subplots(figsize=(10, 10))
+
+        # Setup C-space plot (right)
+        ax2.set_title('Configuration Space')
+        ax2.set_xlim(-np.pi, np.pi)
+        ax2.set_ylim(-np.pi, np.pi)
+        ax2.set_xlabel('θ1')
+        ax2.set_ylabel('θ2')
+        ax2.grid(True)
+        
+        # Pre-compute C-space obstacles through sampling
+        resolution = 50
+        theta1_range = np.linspace(-np.pi, np.pi, resolution)
+        theta2_range = np.linspace(-np.pi, np.pi, resolution)
+        cspace_obstacles = np.zeros((resolution, resolution))
+        
+        for i, theta1 in enumerate(theta1_range):
+            for j, theta2 in enumerate(theta2_range):
+                config = np.array([theta1, theta2])
+                if self.check_config_collision(config):
+                    cspace_obstacles[j, i] = 1
+        
+        # Plot C-space obstacles
+        ax2.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
+                origin='lower', cmap='YlOrRd', alpha=0.5)
+        
+        # Pre-compute node configurations and edges
+        node_configs = np.array([node.config for node in self.nodes])
+        edge_pairs = []
+        if show_animation:
+            for i, node in enumerate(self.nodes):
+                for neighbor, _ in node.neighbors:
+                    j = self.nodes.index(neighbor)
+                    edge_pairs.append((i, j))
+        
+        # Create interpolated frame indices
+        total_nodes = len(self.nodes)
+        frame_indices = np.linspace(0, total_nodes - 1, n_frames, dtype=int)
+        
+        def update(frame):
+            # Clear previous frame
+            ax2.clear()
+            
+            # Reset plot settings            
+            ax2.set_title('Configuration Space')
+            ax2.set_xlim(-np.pi, np.pi)
+            ax2.set_ylim(-np.pi, np.pi)
+            ax2.set_xlabel('θ1')
+            ax2.set_ylabel('θ2')
+            ax2.grid(True)
+            
+            # Plot C-space obstacles
+            ax2.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
+                    origin='lower', cmap='YlOrRd', alpha=0.5)
+            
+            # Calculate how many nodes to show in this frame
+            current_index = frame_indices[frame]
+            
+            # Plot visible nodes in C-space
+            visible_configs = node_configs[:current_index+1]
+            ax2.scatter(visible_configs[:, 0], visible_configs[:, 1], 
+                    c='b', s=20, alpha=0.6)
+            
+            # Plot visible edges in C-space
+            for i, j in edge_pairs:
+                if i <= current_index and j <= current_index:
+                    config1 = node_configs[i]
+                    config2 = node_configs[j]
+                    ax2.plot([config1[0], config2[0]], 
+                            [config1[1], config2[1]], 
+                            'k-', alpha=0.2)
+            
+            # Highlight start and goal configurations
+            ax2.scatter([self.start_config[0]], [self.start_config[1]], 
+                    c='g', s=100, label='Start')
+            ax2.scatter([self.goal_config[0]], [self.goal_config[1]], 
+                    c='r', s=100, label='Goal')
+            ax2.legend()
+            
+            plt.suptitle(f'Frame {frame+1}/{n_frames}')
+        
+        if show_animation:
+            anim = FuncAnimation(
+                fig, 
+                update, 
+                frames=n_frames,
+                interval=40,
+                blit=False,
+                cache_frame_data=False
+            )
+            plt.show(block=True)
+        else:
+            update(n_frames-1)
+            plt.show()
+
+    def compute_cspace_obstacles(self, resolution=50):
+        """Compute C-space obstacles through sampling"""
+        theta1_range = np.linspace(-np.pi, np.pi, resolution)
+        theta2_range = np.linspace(-np.pi, np.pi, resolution)
+        cspace_obstacles = np.zeros((resolution, resolution))
+        
+        for i, theta1 in enumerate(theta1_range):
+            for j, theta2 in enumerate(theta2_range):
+                config = np.array([theta1, theta2])
+                if self.check_config_collision(config):
+                    cspace_obstacles[j, i] = 1
+                    
+        return cspace_obstacles
+
     def _min_obstacle_distance(self, corners):
         """Calculate minimum distance from polygon corners to any obstacle"""
         min_dist = float('inf')
@@ -490,8 +604,7 @@ class PRMPlanner:
             ax.set_title(f'Frame {frame+1}/{len(path)}')
         
         # Create animation with slower interval
-        self.anim = FuncAnimation(fig, update, frames=len(path), interval=50,
-                                repeat=True)
+        self.anim = FuncAnimation(fig, update, frames=len(path), interval=50, repeat=False)
         
         plt.show(block=True)
         
@@ -590,6 +703,13 @@ def main():
     planner.build_roadmap()
     print("Visualizing roadmap...")
     planner.visualize_roadmap()
+
+    # Animate roadmap
+    print("Animating roadmap...")
+    try:
+        planner.animate_roadmap()
+    except Exception as e:
+        print(f"Error animating roadmap: {e}")
     
     # Plan path
     print("Planning path...")
