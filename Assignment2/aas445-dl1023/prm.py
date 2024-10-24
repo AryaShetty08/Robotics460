@@ -603,6 +603,9 @@ class PRMPlanner:
         
         # Create animation with slower interval
         self.anim = FuncAnimation(fig, update, frames=len(path), interval=50, repeat=False)
+
+        # Saves the animation as a mp4 file named 'prm_{robot-type}_solution.mp4'
+        self.anim.save(f'prm_{self.robot_type}_solution.mp4', writer='ffmpeg', fps=30)
         
         plt.show(block=True)
         
