@@ -466,6 +466,11 @@ class RRTPlanner:
                 print(f"Best distance: {best_dist:.3f}, at config: {best_node.config}")
                 print(f"Goal config: {self.goal_config}")
                 print(f"Stall count: {stall_count}\n")
+
+            if len(self.nodes) == 1000:
+                print(f"Max Nodes ({1000}) reached without finding goal")
+                return False
+
             
             # Only declare success if we actually reached the goal
             if self.goal_node:
@@ -630,6 +635,9 @@ class RRTPlanner:
             
         anim = FuncAnimation(fig, update, frames=len(self.nodes)+1, 
                         interval=50, repeat=False)
+        
+        #anim.save("Env4TreeGrowthA2.gif", writer="imagemagick")
+
         plt.show()
 
     def animate_robot_path(self):
@@ -707,6 +715,9 @@ class RRTPlanner:
             
         anim = FuncAnimation(fig, update, frames=len(path), 
                         interval=100, repeat=False)
+        
+        #anim.save("Env4RobotPathA2.gif", writer="imagemagick")
+
         plt.show()
 
     def visualize_problem(self):
@@ -767,7 +778,9 @@ def main():
         planner.animate_tree_growth()
         planner.animate_robot_path()
     else:
-        print("No path found within iteration limit")
+        print("No path found within iteration/node limit")
+        planner.animate_tree_growth()
+        planner.animate_robot_path()
 
 if __name__ == "__main__":
     main()

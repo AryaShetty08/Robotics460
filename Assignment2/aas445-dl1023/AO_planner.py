@@ -528,7 +528,7 @@ class RRTStarPlanner:
             child.cost = self.cost_to_come(node, child.config)
             self.update_descendant_costs(child)
 
-    def build_tree(self, max_iterations=10000):
+    def build_tree(self, max_iterations=500):
         """Build the RRT* tree with improved progress tracking."""
         start_time = time.time()
         iteration = 0
@@ -555,12 +555,17 @@ class RRTStarPlanner:
                     print(f"Current best cost: {best_cost:.3f}")
             
             iteration += 1
+
+            if len(self.nodes) == 1000:
+                print(f"Max Nodes ({1000}) reached without finding goal")
+                return False
             
             # Success criteria: found a path and had time to optimize it
             if self.goal_node and iteration > min(1000, max_iterations/2):
                 path = self.get_path()
                 if self.validate_path(path):
                     print(f"Valid path found after {iteration} iterations with cost {self.goal_node.cost:.3f}")
+                    print(len(self.nodes))
                     print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
                     return True
         
@@ -707,6 +712,9 @@ class RRTStarPlanner:
             
         anim = FuncAnimation(fig, update, frames=len(self.nodes)+1, 
                         interval=50, repeat=False)
+        
+        #anim.save("Env4AOTreeGrowthA2.gif", writer="imagemagick")
+
         plt.show()
 
     def animate_robot_path(self):
@@ -784,6 +792,9 @@ class RRTStarPlanner:
             
         anim = FuncAnimation(fig, update, frames=len(path), 
                         interval=100, repeat=False)
+        
+        #anim.save("Env4AORobotPathA2.gif", writer="imagemagick")
+        
         plt.show()
 
     def visualize_problem(self):
@@ -841,10 +852,12 @@ def main():
 
     if planner.build_tree():
         print("Path found!")
-        planner.animate_tree_growth()
+        #planner.animate_tree_growth()
         planner.animate_robot_path()
     else:
         print("No path found within iteration limit")
+        #planner.animate_tree_growth()
+        planner.animate_robot_path()
 
 if __name__ == "__main__":
     main()

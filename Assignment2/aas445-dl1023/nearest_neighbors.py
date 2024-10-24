@@ -119,13 +119,16 @@ if __name__ == "__main__":
     test_cases = [
         {
             "robot": "arm",
-            "target": (np.pi/4, np.pi/3),
+            #"target": (np.pi/4, np.pi/3),
+            "target": (np.pi/6, np.pi/2),
             "k": 3,
             "configs": "configs2arm.txt"
         },
         {
             "robot": "freebody",
-            "target": (0.5, 0.5, np.pi/4),
+            #"target": (0.5, 0.5, np.pi/4),
+            #"target": (1.0, 0.8, np.pi/3),
+            "target": (2.0, 0.5, np.pi/3),
             "k": 3,
             "configs": "configs1.txt"
         }
