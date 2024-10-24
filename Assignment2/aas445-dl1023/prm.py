@@ -7,6 +7,7 @@ from scipy.spatial import KDTree
 import heapq
 import time
 
+# Easy way to keep track of nodes on tree
 class Node:
     def __init__(self, config):
         self.config = np.array(config)  # Ensure config is numpy array
@@ -14,6 +15,7 @@ class Node:
         self.g_cost = float('inf')
         self.parent = None
 
+# Easy way to keep track of obstacles info, and way to get corners for collision checking
 class Obstacle:
     def __init__(self, x, y, theta, width, height):
         self.x = x
@@ -22,7 +24,8 @@ class Obstacle:
         self.width = width
         self.height = height
         self._corners = None  # Cache corners
-        
+
+    # Get corners in real world       
     def get_corners(self):
         if self._corners is None:
             w, h = self.width/2, self.height/2
@@ -58,7 +61,8 @@ class PRMPlanner:
             self.collision_margin = 0.1      # Add safety margin for freebody
 
         self.load_map(map_filename)
-        
+
+    #Make sure to get all obstacles in environment     
     def load_map(self, filename):
         self.obstacles = []
         try:
@@ -68,7 +72,8 @@ class PRMPlanner:
                     self.obstacles.append(Obstacle(x, y, theta, w, h))
         except Exception as e:
             print(f"Error loading map: {e}")
-            
+
+    # returns the distance between two configs        
     def config_distance(self, config1, config2):
         if self.robot_type == "arm":
             diff = np.abs(config1 - config2)
