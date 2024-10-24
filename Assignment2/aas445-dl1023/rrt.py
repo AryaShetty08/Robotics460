@@ -6,12 +6,14 @@ import random
 from matplotlib.patches import Rectangle
 import time
 
+# Easy way to keep track of nodes on tree
 class Node:
     def __init__(self, config):
         self.config = config
         self.parent = None
         self.children = []
 
+# Easy way to keep track of obstacles info, and way to get corners for collision checking
 class Obstacle:
     def __init__(self, x, y, theta, width, height):
         self.x = x
@@ -19,9 +21,9 @@ class Obstacle:
         self.theta = theta
         self.width = width
         self.height = height
-        
+    
+    # Get corners in real world 
     def get_corners(self):
-        """Get corners of the obstacle in world coordinates."""
         w, h = self.width/2, self.height/2
         corners_local = np.array([
             [-w, -h],
@@ -51,7 +53,7 @@ class RRTPlanner:
         
         # Robot-specific parameters
         if robot_type == "arm":
-            self.link_lengths = [2.0, 1.5]  # Length of arm segments
+            self.link_lengths = [2.0, 1.5] 
             self.bounds = [(-np.pi, np.pi)] * len(start_config)
             self.base_position = (10,10)
         else:  # freeBody
@@ -64,19 +66,17 @@ class RRTPlanner:
 
         self.load_map(map_filename)
 
+    # Make sure config stays in bounds 
     def clip_config(self, config):
-        """Clip the configuration to be within the bounds."""
         return np.clip(config, 
                        [lower for lower, _ in self.bounds], 
                        [upper for _, upper in self.bounds])
-            
+    #Make sure to get all obstacles in environment 
     def load_map(self, filename):
-        """Load obstacles from file."""
         self.obstacles = []
         try:
             with open(filename, 'r') as f:
                 for line in f:
-                    # Remove parentheses and split by comma
                     line = line.strip().strip('()').split(',')
                     if len(line) == 5:
                         x, y, theta, w, h = map(float, line)
@@ -85,8 +85,8 @@ class RRTPlanner:
             print(f"Error loading map file: {e}")
             self.obstacles = []
 
+    # Get coords for the arm robot config 
     def get_arm_points(self, config):
-        """Get the points defining the arm segments for a given configuration."""
         points = [self.base_position]  # Base of the arm
         x, y = self.base_position
         angle_sum = 0
@@ -99,8 +99,8 @@ class RRTPlanner:
             
         return points
 
+    # Get corners of freebody robot config
     def get_freebody_corners(self, config):
-        """Get corners of the freeBody robot at a given configuration."""
         x, y, theta = config
         w, h = self.robot_width/2, self.robot_height/2
         
@@ -122,8 +122,8 @@ class RRTPlanner:
         corners_world = np.dot(corners_local, R.T) + np.array([x, y])
         return corners_world
 
+    # distance between point and segment for arm collision
     def point_segment_distance(self, p, seg_start, seg_end):
-        """Calculate distance between point and line segment."""
         segment = np.array(seg_end) - np.array(seg_start)
         point = np.array(p) - np.array(seg_start)
         
@@ -132,9 +132,8 @@ class RRTPlanner:
         projection = np.array(seg_start) + t * segment
         
         return np.linalg.norm(np.array(p) - projection)
-
+    # Check if segments intersect with Counter clockwise test
     def segments_intersect(self, seg1_start, seg1_end, seg2_start, seg2_end):
-        """Check if two line segments intersect."""
         def ccw(A, B, C):
             return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
         
@@ -145,15 +144,15 @@ class RRTPlanner:
         
         return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
 
+    # Check if the edge that will connect the current and next config will collide 
     def check_collision(self, config1, config2):
-        """Check if the path between two configurations collides with obstacles."""
         if self.robot_type == "arm":
             return self.check_arm_collision(config1, config2)
         else:
             return self.check_freebody_collision(config1, config2)
 
+    # Check if points are in obstacles using raycasting
     def point_inside_polygon(self, point, polygon):
-        """Check if a point is inside a polygon using ray casting algorithm."""
         x, y = point
         n = len(polygon)
         inside = False
@@ -170,9 +169,9 @@ class RRTPlanner:
             p1x, p1y = p2x, p2y
         return inside
 
+    # Check collision of arm robots 
     def check_arm_collision(self, config1, config2):
-        """Enhanced collision checking for arm robot."""
-        steps = 20  # Increased from 10 for finer resolution
+        steps = 20  
         
         # Interpolate between configurations
         for i in range(steps):
@@ -219,8 +218,8 @@ class RRTPlanner:
                         
         return False
 
+    # Same thing for freeboddy checking collision 
     def check_freebody_collision(self, config1, config2):
-        """Check collision for freeBody robot."""
         steps = 10
         
         # Interpolate between configurations
@@ -246,10 +245,10 @@ class RRTPlanner:
                             
         return False
 
+    #Generate random configurations for arm and freebody, 5% towards goal, other is random uniform
     def random_config(self):
-        """Generate a random configuration with improved C-space sampling."""
         if len(self.nodes) > 0:
-            # 0% chance to sample near existing nodes
+            # 0% chance to sample near existing nodes, used earlier but the bias was too much
             if random.random() < -1:
                 random_node = random.choice(self.nodes)
                 if self.robot_type == "arm":
@@ -285,7 +284,7 @@ class RRTPlanner:
                 # Regular uniform sampling
                 if self.robot_type == "arm":
                     config = np.array([random.uniform(lower, upper) 
-                                    for lower, upper in self.bounds])
+                                    for lower, upper in self.bounds]) # theta1, theta2
                 else:  # freeBody
                     config = np.array([
                         random.uniform(self.bounds[0][0], self.bounds[0][1]),  # x
@@ -298,19 +297,19 @@ class RRTPlanner:
                             for lower, upper in self.bounds])
         
         return self.clip_config(config)
-        
+
+    # Find nearest neighbor that will extend to new configuration found     
     def nearest_neighbor(self, config):
-        """Find the nearest node in the tree using a weighted distance metric."""
         min_dist = float('inf')
         nearest_node = None
         
         for node in self.nodes:
             if self.robot_type == "freeBody":
-                # Weight position more heavily than orientation
+                # Weight position more heavily than orientation, since we want to move to location more 
                 pos_dist = np.linalg.norm(node.config[:2] - config[:2])
                 angle_dist = abs(np.arctan2(np.sin(node.config[2] - config[2]), 
                                           np.cos(node.config[2] - config[2])))
-                dist = pos_dist + 0.3 * angle_dist  # Reduce weight of orientation
+                dist = pos_dist + 0.3 * angle_dist  # Reduce weight of orientation, used to be 0.5
             else:
                 dist = np.linalg.norm(node.config - config)
                 
@@ -324,8 +323,8 @@ class RRTPlanner:
                 
         return nearest_node
     
+    # How much to translate towards the new configuration with the nearest node
     def steer(self, from_config, to_config, step_size=0.2):  # Increased step size further
-        """Generate a new configuration with adaptive step size."""
         diff = to_config - from_config
         
         if self.robot_type == "freeBody":
@@ -340,7 +339,7 @@ class RRTPlanner:
             pos_dist = np.linalg.norm(pos_diff)
             
             if pos_dist > adaptive_step:
-                # Scale position components
+                # Scale position components, to find where we end up after going some distance 
                 new_pos = from_config[:2] + (pos_diff / pos_dist) * adaptive_step
                 # Interpolate orientation with reduced weight
                 t = adaptive_step / pos_dist
@@ -361,14 +360,14 @@ class RRTPlanner:
                 
         return self.clip_config(new_config)
     
+    # Actually add the node to the tree after we figured out where to steer 
     def extend(self, random_config):
-        """Extend the tree with proper goal checking."""
         nearest = self.nearest_neighbor(random_config)
         new_config = self.steer(nearest.config, random_config)
         
         new_config = self.clip_config(new_config)
 
-        # First check if the new configuration is valid and different enough
+        # First check if the new configuration is valid and different enough, so we don't get abundance of points 
         if self.robot_type == "freeBody":
             pos_close = np.allclose(new_config[:2], nearest.config[:2], atol=1e-2)
             angle_close = np.allclose(new_config[2], nearest.config[2], atol=1e-3)
@@ -378,7 +377,7 @@ class RRTPlanner:
             if np.allclose(new_config, nearest.config, atol=1e-2):
                 return None
             
-        # Check collision before proceeding
+        # Check collision before proceeding, to make sure the edge is not conflicting
         if self.check_collision(nearest.config, new_config):
             return None
             
@@ -401,11 +400,12 @@ class RRTPlanner:
             
             # Strict goal checking
             if pos_dist < self.goal_radius and angle_dist < self.goal_radius:
-                # Verify path to goal is collision-free
+                # Verify path to goal is collision-free, since even if its in the circle the edege may not connect
                 if not self.check_collision(new_config, self.goal_config):
                     self.goal_node = new_node
                     return new_node
         else:
+            #For arm
             end_effector = self.get_arm_points(new_config)[-1]
             goal_end_effector = self.get_arm_points(self.goal_config)[-1]
             dist_to_goal = np.linalg.norm(np.array(end_effector) - np.array(goal_end_effector))
@@ -416,22 +416,18 @@ class RRTPlanner:
         
         return new_node
 
+    # Where RRT tree actually grows 
     def build_tree(self, max_iterations=10000):
-        """Build the RRT with improved progress tracking and visualization."""
         start_time = time.time()
         iteration = 0
         stall_count = 0
         last_best_dist = float('inf')
         best_node = None
         
+        # Runs on max iterations, or when it reaches 1000 nodes it stops, or if it finds goal 
         while iteration < max_iterations:
-            # Adaptive goal bias
-            goal_bias = 0.2 if stall_count < 100 else 0.1
-            
-            if random.random() < goal_bias:
-                random_config = self.goal_config
-            else:
-                random_config = self.random_config()
+            # Adaptive goal bias in random_config
+            random_config = self.random_config()
             
             node = self.extend(random_config)
             
@@ -454,7 +450,7 @@ class RRTPlanner:
                         best_dist = dist
                         best_node = n
             
-            # Track progress
+            # Track progress, stalls were used to see if the tree wasn't expanding in the right direction towards goal 
             if abs(best_dist - last_best_dist) < 0.01:
                 stall_count += 1
             else:
@@ -506,8 +502,8 @@ class RRTPlanner:
                 print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
                 return False
 
+    # Backtrack from goal to get the path taken form parents 
     def get_path(self):
-        """Extract the path from start to goal if one is found."""
         if not self.goal_node:
             return []
             
@@ -518,17 +514,18 @@ class RRTPlanner:
             current = current.parent
         return path[::-1]
 
+    # Animate the RRT Tree actually growing 
     def animate_tree_growth(self):
-        """Enhanced visualization with C-space for arm and workspace for freeBody."""
         fig, ax = plt.subplots(figsize=(10, 10))
         
         if self.robot_type == "arm":
+            # Computes the obstacles and plots them in cspace which is made by having the joint angles as the axes 
             print("Computing C-space obstacles...")
             theta1_range = np.linspace(self.bounds[0][0], self.bounds[0][1], 50)
             theta2_range = np.linspace(self.bounds[1][0], self.bounds[1][1], 50)
             collision_map = np.zeros((len(theta1_range), len(theta2_range)))
             
-            # Check collisions for each configuration
+            # Check collisions for each configuration, not needed but we double check if we are doing a tree that doesn't reach goal 
             for i, theta1 in enumerate(theta1_range):
                 for j, theta2 in enumerate(theta2_range):
                     config = np.array([theta1, theta2])
@@ -598,7 +595,7 @@ class RRTPlanner:
                 ax.grid(True, alpha=0.3)
             
             else:  # freeBody robot
-                # Plot in C-space (x, y, theta)
+                # Plot in workspce since easieer to tell than arm (x, y, theta)
                 # We'll show a 2D projection (x, y) with color representing theta
                 
                 # Plot obstacles
@@ -640,8 +637,8 @@ class RRTPlanner:
 
         plt.show()
 
+    # Animate robots moving in workspace
     def animate_robot_path(self):
-        """Create an animation of the robot moving along the solution path in workspace."""
         path = self.get_path()
         if not path:
             print("No path found to animate")
@@ -668,7 +665,7 @@ class RRTPlanner:
                         [points[i][1], points[i+1][1]], 'b-', linewidth=3)
                 ax.plot([p[0] for p in points], [p[1] for p in points], 'bo')
                 
-                # Draw ghost images of previous configurations
+                # Draw ghost images of previous configurations to show the path 
                 alpha = 0.2
                 for prev_config in path[:frame]:
                     prev_points = self.get_arm_points(prev_config)
@@ -698,7 +695,7 @@ class RRTPlanner:
                 dy = 0.2 * np.sin(theta)
                 ax.arrow(x, y, dx, dy, head_width=0.1, color='red')
                 
-                # Draw ghost images of previous configurations
+                # Draw ghost images of previous configurations to show the path
                 alpha = 0.2
                 for prev_config in path[:frame]:
                     prev_corners = self.get_freebody_corners(prev_config)
@@ -720,6 +717,7 @@ class RRTPlanner:
 
         plt.show()
 
+    # this was used to figure out whether our start and goals were even feasible, commented out later 
     def visualize_problem(self):
         fig, ax = plt.subplots()
         theta1_range = np.linspace(self.bounds[0][0], self.bounds[0][1], 100)

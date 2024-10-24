@@ -6,6 +6,7 @@ import random
 from matplotlib.patches import Rectangle
 import time
 
+# Easy way to keep track of nodes on tree
 class Node:
     def __init__(self, config):
         self.config = config
@@ -13,6 +14,7 @@ class Node:
         self.children = []
         self.cost = float('inf')  # Cost from start to this node
 
+# Easy way to keep track of obstacles info, and way to get corners for collision checking
 class Obstacle:
     def __init__(self, x, y, theta, width, height):
         self.x = x
@@ -20,9 +22,9 @@ class Obstacle:
         self.theta = theta
         self.width = width
         self.height = height
-        
+
+    # Get corners in real world 
     def get_corners(self):
-        """Get corners of the obstacle in world coordinates."""
         w, h = self.width/2, self.height/2
         corners_local = np.array([
             [-w, -h],
@@ -51,7 +53,7 @@ class RRTStarPlanner:
         
         # Robot-specific parameters
         if robot_type == "arm":
-            self.link_lengths = [2.0, 1.5]  # Length of arm segments
+            self.link_lengths = [2.0, 1.5]  
             self.bounds = [(-np.pi, np.pi)] * len(start_config)
             self.base_position = (10,10)
         else:  # freeBody
@@ -74,20 +76,11 @@ class RRTStarPlanner:
         # Tuning parameter for RRT*
         self.gamma = 2.0  # Can be tuned based on environment
         
-
+    # The dynamic radius changes as the tree grwos making it smaller
     def get_neighborhood_radius(self):
-        """Calculate the neighborhood radius based on current tree size."""
         n = len(self.nodes)
         if n < 2:
             return float('inf')
-        
-        # Calculate volume of the C-space (approximation)
-        if self.robot_type == "freeBody":
-            space_volume = (self.bounds[0][1] - self.bounds[0][0]) * \
-                        (self.bounds[1][1] - self.bounds[1][0]) * \
-                        (2 * np.pi)  # Full rotation range
-        else:  # arm
-            space_volume = np.prod([upper - lower for lower, upper in self.bounds])
         
         # RRT* radius calculation
         dimension = len(self.bounds)
@@ -98,8 +91,8 @@ class RRTStarPlanner:
         
         return radius
 
+    # The alternative of get nearest, you get the nearest in the radius 
     def get_neighbors(self, config, radius):
-        """Find all nodes within radius of config."""
         neighbors = []
         for node in self.nodes:
             if self.robot_type == "freeBody":
@@ -116,8 +109,8 @@ class RRTStarPlanner:
                 neighbors.append(node)
         return neighbors
 
+    # get the cost from one node to the next config 
     def cost_to_come(self, from_node, to_config):
-        """Calculate the cost to come from a node to a configuration."""
         if self.robot_type == "freeBody":
             # Weight position more heavily than orientation for cost
             pos_dist = np.linalg.norm(from_node.config[:2] - to_config[:2])
@@ -127,20 +120,17 @@ class RRTStarPlanner:
         else:
             return from_node.cost + np.linalg.norm(from_node.config - to_config)
 
-
+    # Make sure config stays in bounds 
     def clip_config(self, config):
-        """Clip the configuration to be within the bounds."""
         return np.clip(config, 
                        [lower for lower, _ in self.bounds], 
                        [upper for _, upper in self.bounds])
-            
+    #Make sure to get all obstacles in environment       
     def load_map(self, filename):
-        """Load obstacles from file."""
         self.obstacles = []
         try:
             with open(filename, 'r') as f:
                 for line in f:
-                    # Remove parentheses and split by comma
                     line = line.strip().strip('()').split(',')
                     if len(line) == 5:
                         x, y, theta, w, h = map(float, line)
@@ -149,8 +139,8 @@ class RRTStarPlanner:
             print(f"Error loading map file: {e}")
             self.obstacles = []
 
+    # Get coords for the arm robot config 
     def get_arm_points(self, config):
-        """Get the points defining the arm segments for a given configuration."""
         points = [self.base_position]  # Base of the arm
         x, y = self.base_position
         angle_sum = 0
@@ -163,8 +153,8 @@ class RRTStarPlanner:
             
         return points
 
+    # Get corners of freebody robot config
     def get_freebody_corners(self, config):
-        """Get corners of the freeBody robot at a given configuration."""
         x, y, theta = config
         w, h = self.robot_width/2, self.robot_height/2
         
@@ -186,8 +176,8 @@ class RRTStarPlanner:
         corners_world = np.dot(corners_local, R.T) + np.array([x, y])
         return corners_world
 
+    # distance between point and segment for arm collision 
     def point_segment_distance(self, p, seg_start, seg_end):
-        """Calculate distance between point and line segment."""
         segment = np.array(seg_end) - np.array(seg_start)
         point = np.array(p) - np.array(seg_start)
         
@@ -197,8 +187,8 @@ class RRTStarPlanner:
         
         return np.linalg.norm(np.array(p) - projection)
 
+    # Check if segments intersect with Counter clockwise test
     def segments_intersect(self, seg1_start, seg1_end, seg2_start, seg2_end):
-        """Check if two line segments intersect."""
         def ccw(A, B, C):
             return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
         
@@ -209,15 +199,15 @@ class RRTStarPlanner:
         
         return ccw(A,C,D) != ccw(B,C,D) and ccw(A,B,C) != ccw(A,B,D)
 
+    # Check if the edge that will connect the current and next config will collide 
     def check_collision(self, config1, config2):
-        """Check if the path between two configurations collides with obstacles."""
         if self.robot_type == "arm":
             return self.check_arm_collision(config1, config2)
         else:
             return self.check_freebody_collision(config1, config2)
 
+    # Check if points are in obstacles using raycasting
     def point_inside_polygon(self, point, polygon):
-        """Check if a point is inside a polygon using ray casting algorithm."""
         x, y = point
         n = len(polygon)
         inside = False
@@ -234,8 +224,8 @@ class RRTStarPlanner:
             p1x, p1y = p2x, p2y
         return inside
 
+    # Check collision of arm robots 
     def check_arm_collision(self, config1, config2):
-        """Enhanced collision checking for arm robot."""
         steps = 20  # Increased from 10 for finer resolution
         
         # Interpolate between configurations
@@ -283,8 +273,8 @@ class RRTStarPlanner:
                         
         return False
 
+    # Same thing for freeboddy checking collision 
     def check_freebody_collision(self, config1, config2):
-        """Check collision for freeBody robot."""
         steps = 10
         
         # Interpolate between configurations
@@ -310,8 +300,8 @@ class RRTStarPlanner:
                             
         return False
 
+    #Generate random configurations for arm and freebody, 5% towards goal, other is random uniform
     def random_config(self):
-        """Generate a random configuration with improved C-space sampling."""
         if len(self.nodes) > 0:
             # 0% chance to sample near existing nodes
             if random.random() < -1:
@@ -363,8 +353,8 @@ class RRTStarPlanner:
         
         return self.clip_config(config)
         
+    # Keeping this in case the other one doesn't turn up results
     def nearest_neighbor(self, config):
-        """Find the nearest node in the tree using a weighted distance metric."""
         min_dist = float('inf')
         nearest_node = None
         
@@ -388,8 +378,8 @@ class RRTStarPlanner:
                 
         return nearest_node
     
+    # How much to translate towards the new configuration with the nearest node
     def steer(self, from_config, to_config, step_size=0.2):  # Increased step size further
-        """Generate a new configuration with adaptive step size."""
         diff = to_config - from_config
         
         if self.robot_type == "freeBody":
@@ -425,8 +415,8 @@ class RRTStarPlanner:
                 
         return self.clip_config(new_config)
 
+    # Actually add the node to the tree after we figured out where to steer 
     def extend(self, random_config):
-        """RRT* extend function with improved nearest neighbor selection and rewiring."""
         # First find nearest neighbor as a backup
         nearest = self.nearest_neighbor(random_config)
         if nearest is None:
@@ -497,8 +487,8 @@ class RRTStarPlanner:
         
         return new_node
 
+    # Rewire nodes and delete to make more optimal paths and delete bad nodes
     def rewire(self, new_node, neighbors):
-        """Rewire the tree to optimize paths through the new node."""
         for neighbor in neighbors:
             if neighbor == new_node.parent:
                 continue
@@ -522,14 +512,14 @@ class RRTStarPlanner:
                     # Update costs of all descendants
                     self.update_descendant_costs(neighbor) 
 
+    # Update children costs after rewiring
     def update_descendant_costs(self, node):
-        """Update the costs of all descendants after rewiring."""
         for child in node.children:
             child.cost = self.cost_to_come(node, child.config)
             self.update_descendant_costs(child)
 
+    # Where RRT tree actually grows 
     def build_tree(self, max_iterations=500):
-        """Build the RRT* tree with improved progress tracking."""
         start_time = time.time()
         iteration = 0
         best_cost = float('inf')
@@ -573,8 +563,8 @@ class RRTStarPlanner:
         print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
         return self.goal_node is not None
 
+    # extra check for path being collision free
     def validate_path(self, path):
-        """Validate that the path is collision-free."""
         if not path:
             return False
             
@@ -583,8 +573,8 @@ class RRTStarPlanner:
                 return False
         return True
 
+    # Backtrack from goal to get the path taken form parents 
     def get_path(self):
-        """Extract the path from start to goal if one is found."""
         if not self.goal_node:
             return []
             
@@ -595,11 +585,12 @@ class RRTStarPlanner:
             current = current.parent
         return path[::-1]
 
+    # Animate the RRT Tree actually growing 
     def animate_tree_growth(self):
-        """Enhanced visualization with C-space for arm and workspace for freeBody."""
         fig, ax = plt.subplots(figsize=(10, 10))
         
         if self.robot_type == "arm":
+            # Computes the obstacles and plots them in cspace which is made by having the joint angles as the axes 
             print("Computing C-space obstacles...")
             theta1_range = np.linspace(self.bounds[0][0], self.bounds[0][1], 50)
             theta2_range = np.linspace(self.bounds[1][0], self.bounds[1][1], 50)
@@ -717,8 +708,8 @@ class RRTStarPlanner:
 
         plt.show()
 
+    # Animate robots moving in workspace
     def animate_robot_path(self):
-        """Create an animation of the robot moving along the solution path in workspace."""
         path = self.get_path()
         if not path:
             print("No path found to animate")
@@ -797,6 +788,7 @@ class RRTStarPlanner:
         
         plt.show()
 
+    # this was used to figure out whether our start and goals were even feasible, commented out later 
     def visualize_problem(self):
         fig, ax = plt.subplots()
         theta1_range = np.linspace(self.bounds[0][0], self.bounds[0][1], 100)
@@ -852,11 +844,11 @@ def main():
 
     if planner.build_tree():
         print("Path found!")
-        #planner.animate_tree_growth()
+        planner.animate_tree_growth()
         planner.animate_robot_path()
     else:
         print("No path found within iteration limit")
-        #planner.animate_tree_growth()
+        planner.animate_tree_growth()
         planner.animate_robot_path()
 
 if __name__ == "__main__":
