@@ -25,7 +25,7 @@ class Obstacle:
         self.height = height
         self._corners = None  # Cache corners
 
-    # Get corners in real world       
+    # Get corners in real world
     def get_corners(self):
         if self._corners is None:
             w, h = self.width/2, self.height/2
@@ -124,20 +124,19 @@ class PRMPlanner:
             p1, p2 = points[i], points[i + 1]
             for obs in self.obstacles:
                 obs_corners = obs.get_corners()
+                
                 # Check if segment endpoints are inside obstacle
                 if self.point_inside_polygon(p1, obs_corners) or \
                    self.point_inside_polygon(p2, obs_corners):
                     return True
+                
                 # Check segment intersection with obstacle edges
                 for j in range(len(obs_corners)):
-                    if self.segments_intersect(p1, p2,
-                                            obs_corners[j],
-                                            obs_corners[(j+1)%len(obs_corners)]):
+                    if self.segments_intersect(p1, p2, obs_corners[j], obs_corners[(j+1)%len(obs_corners)]):
                         return True
         return False
     
     def _expand_polygon(self, corners, margin):
-        """Expand polygon by moving corners outward by margin"""
         center = np.mean(corners, axis=0)
         expanded = []
         for corner in corners:
@@ -178,6 +177,7 @@ class PRMPlanner:
                         return True
         return False
         
+    # this function checks for overlap so that we can avoid checking for collision
     def aabb_overlap(self, corners1, corners2):
         min1 = np.min(corners1, axis=0)
         max1 = np.max(corners1, axis=0)
@@ -226,7 +226,7 @@ class PRMPlanner:
                      [np.sin(theta), np.cos(theta)]])
         return np.dot(corners_local, R.T) + np.array([x, y])
 
-    def build_roadmap(self, n_samples=5000, k=6):  # Increased k from 6
+    def build_roadmap(self, n_samples=5000, k=6):  # change parameters based on case
         print("Building roadmap...")
         start_time = time.time()
 
@@ -297,14 +297,91 @@ class PRMPlanner:
         print(f"Connection time: {time.time() - connection_start:.3f} seconds")
         print(f"Total roadmap building time: {time.time() - start_time:.3f} seconds")
 
-    def animate_roadmap(self, show_animation=True, n_frames=100):
-        if self.robot_type != "arm":
-            print("C-space visualization is only available for robotic arms")
-            return
-            
+    def animate_roadmap_freebody(self, show_animation=True, n_frames=100):
         fig, ax = plt.subplots(figsize=(10, 10))
 
-        # Setup C-space plot (right)
+        ax.set_xlim(0, 20)
+        ax.set_ylim(0, 20)
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.grid(True)
+        
+        resolution = 50
+        x_range = np.linspace(0, 20, resolution)
+        y_range = np.linspace(0, 20, resolution)
+        workspace_obstacles = np.zeros((resolution, resolution))
+        
+        for i, x in enumerate(x_range):
+            for j, y in enumerate(y_range):
+                config = np.array([x, y, 0])
+                if self.check_config_collision(config):
+                    workspace_obstacles[j, i] = 1
+        
+        # plot workspace obstacles
+        ax.imshow(workspace_obstacles, extent=[0, 20, 0, 20], origin='lower', cmap='YlOrRd', alpha=0.5)
+        
+        # pre-compute node configurations and edges
+        node_configs = np.array([node.config for node in self.nodes])
+        edge_pairs = []
+        if show_animation:
+            for i, node in enumerate(self.nodes):
+                for neighbor, _ in node.neighbors:
+                    j = self.nodes.index(neighbor)
+                    edge_pairs.append((i, j))
+        
+        # create interpolated frame indices
+        total_nodes = len(self.nodes)
+        frame_indices = np.linspace(0, total_nodes - 1, n_frames, dtype=int)
+        
+        def update(frame):
+            ax.clear()
+            
+            ax.set_xlim(0, 20)
+            ax.set_ylim(0, 20)
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.grid(True)
+            
+            ax.imshow(workspace_obstacles, extent=[0, 20, 0, 20], origin='lower', cmap='YlOrRd', alpha=0.5)
+        
+            current_index = frame_indices[frame]
+            
+            # plot visible nodes in workspace
+            visible_configs = node_configs
+            ax.scatter(visible_configs[:, 0], visible_configs[:, 1], c='b', s=20, alpha=0.6)
+
+            # plot visible edges in workspace
+            for i, j in edge_pairs:
+                if i <= current_index and j <= current_index:
+                    config1 = node_configs[i]
+                    config2 = node_configs[j]
+                    ax.plot([config1[0], config2[0]], 
+                            [config1[1], config2[1]], 
+                            'k-', alpha=0.2)
+                    
+            ax.scatter([self.start_config[0]], [self.start_config[1]], c='g', s=100, label='Start')
+            ax.scatter([self.goal_config[0]], [self.goal_config[1]], c='r', s=100, label='Goal')
+            ax.legend()
+
+            plt.suptitle(f'Frame {frame+1}/{n_frames}')
+
+        if show_animation:
+            anim = FuncAnimation(
+                fig, 
+                update, 
+                frames=n_frames,
+                interval=40,
+                blit=False,
+                cache_frame_data=False
+            )
+            plt.show()
+        else:
+            update(n_frames-1)
+            plt.show()
+
+    def animate_roadmap_arm(self, show_animation=True, n_frames=100):
+        fig, ax = plt.subplots(figsize=(10, 10))
+
         ax.set_title('Configuration Space')
         ax.set_xlim(-np.pi, np.pi)
         ax.set_ylim(-np.pi, np.pi)
@@ -312,7 +389,6 @@ class PRMPlanner:
         ax.set_ylabel('θ2')
         ax.grid(True)
         
-        # Pre-compute C-space obstacles through sampling
         resolution = 50
         theta1_range = np.linspace(-np.pi, np.pi, resolution)
         theta2_range = np.linspace(-np.pi, np.pi, resolution)
@@ -324,11 +400,10 @@ class PRMPlanner:
                 if self.check_config_collision(config):
                     cspace_obstacles[j, i] = 1
         
-        # Plot C-space obstacles
-        ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
-                origin='lower', cmap='YlOrRd', alpha=0.5)
+        # plot C-space obstacles
+        ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], origin='lower', cmap='YlOrRd', alpha=0.5)
         
-        # Pre-compute node configurations and edges
+        # pre-compute node configurations and edges to reduce computation
         node_configs = np.array([node.config for node in self.nodes])
         edge_pairs = []
         if show_animation:
@@ -337,15 +412,13 @@ class PRMPlanner:
                     j = self.nodes.index(neighbor)
                     edge_pairs.append((i, j))
         
-        # Create interpolated frame indices
+        # create interpolated frame indices
         total_nodes = len(self.nodes)
         frame_indices = np.linspace(0, total_nodes - 1, n_frames, dtype=int)
         
         def update(frame):
-            # Clear previous frame
             ax.clear()
-            
-            # Reset plot settings            
+                   
             ax.set_title('Configuration Space')
             ax.set_xlim(-np.pi, np.pi)
             ax.set_ylim(-np.pi, np.pi)
@@ -353,19 +426,16 @@ class PRMPlanner:
             ax.set_ylabel('θ2')
             ax.grid(True)
             
-            # Plot C-space obstacles
-            ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], 
-                    origin='lower', cmap='YlOrRd', alpha=0.5)
+            ax.imshow(cspace_obstacles, extent=[-np.pi, np.pi, -np.pi, np.pi], origin='lower', cmap='YlOrRd', alpha=0.5)
             
-            # Calculate how many nodes to show in this frame
             current_index = frame_indices[frame]
             
-            # Plot visible nodes in C-space
+            # plot visible nodes in C-space
             visible_configs = node_configs[:current_index+1]
             ax.scatter(visible_configs[:, 0], visible_configs[:, 1], 
                     c='b', s=20, alpha=0.6)
             
-            # Plot visible edges in C-space
+            # plot visible edges in C-space
             for i, j in edge_pairs:
                 if i <= current_index and j <= current_index:
                     config1 = node_configs[i]
@@ -374,11 +444,8 @@ class PRMPlanner:
                             [config1[1], config2[1]], 
                             'k-', alpha=0.2)
             
-            # Highlight start and goal configurations
-            ax.scatter([self.start_config[0]], [self.start_config[1]], 
-                    c='g', s=100, label='Start')
-            ax.scatter([self.goal_config[0]], [self.goal_config[1]], 
-                    c='r', s=100, label='Goal')
+            ax.scatter([self.start_config[0]], [self.start_config[1]], c='g', s=100, label='Start')
+            ax.scatter([self.goal_config[0]], [self.goal_config[1]], c='r', s=100, label='Goal')
             ax.legend()
             
             plt.suptitle(f'Frame {frame+1}/{n_frames}')
@@ -398,7 +465,6 @@ class PRMPlanner:
             plt.show()
 
     def _min_obstacle_distance(self, corners):
-        """Calculate minimum distance from polygon corners to any obstacle"""
         min_dist = float('inf')
         for corner in corners:
             for obs in self.obstacles:
@@ -420,7 +486,6 @@ class PRMPlanner:
         return config
 
     def verify_connectivity(self):
-        """Check if start and goal are in the same connected component"""
         visited = set()
         queue = [self.nodes[0]]  # Start node
         visited.add(self.nodes[0])
@@ -437,7 +502,6 @@ class PRMPlanner:
         return False
 
     def improve_connectivity(self, k):
-        """Add more connections to improve connectivity"""
         node_configs = np.array([node.config for node in self.nodes])
         tree = KDTree(node_configs)
         
@@ -571,11 +635,10 @@ class PRMPlanner:
                 points = self.get_arm_points(config)
                 # Plot arm links
                 for i in range(len(points)-1):
-                    ax.plot([points[i][0], points[i+1][0]], 
-                        [points[i][1], points[i+1][1]], 'b-', linewidth=2)
+                    ax.plot([points[i][0], points[i+1][0]], [points[i][1], points[i+1][1]], 'b-', linewidth=2)
+                
                 # Plot joints
-                ax.scatter([p[0] for p in points], [p[1] for p in points], 
-                        c='r', s=50)
+                ax.scatter([p[0] for p in points], [p[1] for p in points], c='r', s=50)
                 
                 # Plot full path lightly
                 for i in range(len(path)):
@@ -587,14 +650,12 @@ class PRMPlanner:
             else:
                 corners = self.get_freebody_corners(config)
                 # Plot robot body
-                ax.fill([c[0] for c in corners], [c[1] for c in corners], 
-                    'b', alpha=0.5)
+                ax.fill([c[0] for c in corners], [c[1] for c in corners], 'b', alpha=0.5)
+
                 # Plot direction indicator
                 center = np.mean(corners, axis=0)
-                direction = center + 0.3 * np.array([np.cos(config[2]), 
-                                                np.sin(config[2])])
-                ax.plot([center[0], direction[0]], [center[1], direction[1]], 
-                    'r-', linewidth=2)
+                direction = center + 0.3 * np.array([np.cos(config[2]), np.sin(config[2])])
+                ax.plot([center[0], direction[0]], [center[1], direction[1]], 'r-', linewidth=2)
                 
                 # Plot full path lightly
                 path_points = np.array([[c[0], c[1]] for c in path])
@@ -615,7 +676,6 @@ class PRMPlanner:
         plt.show(block=True)
         
     def plot_environment(self, ax):
-        # Plot obstacles
         for obs in self.obstacles:
             corners = obs.get_corners()
             corners = np.vstack([corners, corners[0]])  # Close the polygon
@@ -623,26 +683,22 @@ class PRMPlanner:
             
         # Plot start and goal configurations
         if self.robot_type == "arm":
-            # Plot start configuration
             start_points = self.get_arm_points(self.start_config)
             for i in range(len(start_points)-1):
                 ax.plot([start_points[i][0], start_points[i+1][0]], 
                        [start_points[i][1], start_points[i+1][1]], 
                        'g--', linewidth=2, alpha=0.5)
             
-            # Plot goal configuration
             goal_points = self.get_arm_points(self.goal_config)
             for i in range(len(goal_points)-1):
                 ax.plot([goal_points[i][0], goal_points[i+1][0]], 
                        [goal_points[i][1], goal_points[i+1][1]], 
                        'r--', linewidth=2, alpha=0.5)
         else:
-            # Plot start configuration
             start_corners = self.get_freebody_corners(self.start_config)
             ax.fill([c[0] for c in start_corners], [c[1] for c in start_corners], 
                    'g', alpha=0.3)
             
-            # Plot goal configuration
             goal_corners = self.get_freebody_corners(self.goal_config)
             ax.fill([c[0] for c in goal_corners], [c[1] for c in goal_corners], 
                    'r', alpha=0.3)
@@ -651,37 +707,33 @@ class PRMPlanner:
         fig, ax = plt.subplots(figsize=(10, 10))
         
         if self.robot_type == "arm":
-            # Plot C-space roadmap for arm
             ax.set_xlim(-np.pi, np.pi)
             ax.set_ylim(-np.pi, np.pi)
             ax.set_xlabel('θ1')
             ax.set_ylabel('θ2')
             
-            # Plot nodes
             configs = np.array([node.config for node in self.nodes])
             ax.scatter(configs[:, 0], configs[:, 1], c='b', s=20)
             
-            # Plot edges
             for node in self.nodes:
                 for neighbor, _ in node.neighbors:
                     ax.plot([node.config[0], neighbor.config[0]], 
                            [node.config[1], neighbor.config[1]], 
                            'k-', alpha=0.2)
             
-            # Highlight start and goal
             ax.scatter([self.start_config[0]], [self.start_config[1]], 
                       c='g', s=100, label='Start')
             ax.scatter([self.goal_config[0]], [self.goal_config[1]], 
                       c='r', s=100, label='Goal')
         else:
-            # Plot workspace roadmap for freebody
+            # plot workspace roadmap for freebody
             self.plot_environment(ax)
             
-            # Plot nodes
+            # nodes
             configs = np.array([node.config for node in self.nodes])
             ax.scatter(configs[:, 0], configs[:, 1], c='b', s=20)
             
-            # Plot edges
+            # edges
             for node in self.nodes:
                 for neighbor, _ in node.neighbors:
                     ax.plot([node.config[0], neighbor.config[0]], 
@@ -710,12 +762,15 @@ def main():
     print("Visualizing roadmap...")
     planner.visualize_roadmap()
 
-    # # Animate roadmap
-    # print("Animating roadmap...")
-    # try:
-    #     planner.animate_roadmap()
-    # except Exception as e:
-    #     print(f"Error animating roadmap: {e}")
+    # Animate roadmap
+    print("Animating roadmap...")
+    try:
+        if args.robot == "arm":
+            planner.animate_roadmap_arm()
+        else:
+            planner.animate_roadmap_freebody()
+    except Exception as e:
+        print(f"Error animating roadmap: {e}")
     
     # Plan path
     print("Planning path...")
