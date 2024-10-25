@@ -489,7 +489,7 @@ class RRTPlanner:
         anim = FuncAnimation(fig, update, frames=len(self.nodes)+1, 
                         interval=50, repeat=False)
         
-        #anim.save("Env4TreeGrowthA2.gif", writer="imagemagick")
+        #anim.save("Env5Car_rrt_grow.gif", writer="imagemagick")
 
         plt.show()
 
@@ -553,7 +553,7 @@ class RRTPlanner:
         anim = FuncAnimation(fig, update, frames=len(path), 
                         interval=100, repeat=False)
         
-        #anim.save("Env4RobotPathA2.gif", writer="imagemagick")
+        #anim.save("Env5Car_rrt_traj.gif", writer="imagemagick")
 
         plt.show()
 
