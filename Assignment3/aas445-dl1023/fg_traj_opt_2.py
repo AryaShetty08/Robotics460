@@ -36,19 +36,23 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start', nargs=2, type=float, default=[0.0, 0.0], help='Start state')
     parser.add_argument('--goal', nargs=2, type=float, default=[5.0, 5.0], help='Goal state')
+    parser.add_argument('--x0', nargs=2, type=float, default=[0.0, 0.0], help='Input state 1')
+    parser.add_argument('--x1', nargs=2, type=float, default=[2.0, 2.0], help='Input state 2')
     parser.add_argument('--T', type=int, default=50, help='Number of timesteps')
     
     args = parser.parse_args()
     
     # Parameters
     start_state = np.array(args.start)
-    goal_state = np.array(args.goal)   
+    goal_state = np.array(args.goal)
+    x0 = np.array(args.x0)
+    x1 = np.array(args.x1)   
     T = args.T
     dt = 0.1
     
     graph = gtsam.NonlinearFactorGraph()
     
-    # Create noise model fir 2D
+    # Create noise model for 2D
     sigma = 1
     noise_model = gtsam.noiseModel.Isotropic.Sigma(2, sigma)
     
@@ -83,6 +87,21 @@ def main():
     )
     graph.add(goal_prior)
     
+    # add in the extra constraints here
+    x0_prior = gtsam.PriorFactorVector(
+        gtsam.symbol('q', int(T/3)),
+        gtsam.Point2(x0[0], x0[1]),
+        noise_model
+    )
+    graph.add(x0_prior)
+
+    x1_prior = gtsam.PriorFactorVector(
+        gtsam.symbol('q', int(2*T/3)),
+        gtsam.Point2(x1[0], x1[1]),
+        noise_model
+    )
+    graph.add(x1_prior)
+
     # Add dynamics factors
     for t in range(T-1):
         qt_key = gtsam.symbol('q', t)
@@ -141,6 +160,8 @@ def main():
     plt.plot(trajectory_x, trajectory_y, '-b', label='Trajectory')
     plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
     plt.plot([goal_state[0]], [goal_state[1]], 'ro', label='Goal')
+    plt.plot([x0[0]], [x0[1]], 'mo', label='Input State 1')
+    plt.plot([x1[0]], [x1[1]], 'co', label='Input State 2')
     plt.xlabel('X Position')
     plt.ylabel('Y Position')
     plt.legend()
