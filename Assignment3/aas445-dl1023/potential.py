@@ -2,190 +2,201 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import argparse
-import random
 from matplotlib.patches import Rectangle, Polygon
-import time
 
-# define the potetntials
-# attractive
-# repulsive
-# calculate and use gradient to find force for robot to move this is in 2d no rotation 
-# and implement
+"""
+Potential Function Planner which gives path that robot should take based
+on attractive and replusive potentials defined. Specifcally on 20x20 grid
+with environment file loaded obstacles.
 
-class PotentialPlanner:
-    def __init__(self, k_att=1.0, k_rep=100.0, rho_0=2.0):
-        # attractive, repulsive, and influence of radius of obs
-        self.k_att = k_att
-        self.k_rep = k_rep
-        self.rho_0 = rho_0
-# this one is for goal
-    def attractive_potential(self, robot_pose, goal):
-        # they used a quadratic here??
-        att_pot = 0.5 * self.k_att * np.sum(np.square(robot_pose - goal))
-        return att_pot
+Input:
+- start - x and y position of where the robot begins, must be collision free
+- goal - x and y position of where robot must end
+- obstacles - environment file with defined obstacles (x,y,theta,w,h)
+
+Returns:
+- path - path of poses that robot takes when traversing to goal
+- success - bool that is True if robot makes it to goal or False if planner fails
+"""
+class PotentialFunctionPlanner:
+    def __init__(self, k_att=0.5, k_rep=200.0, rho_0=0.5):
+        self.k_att = k_att  # Attractive force
+        self.k_rep = k_rep  # Repulsive force
+        self.rho_0 = rho_0  # Influences radius of how close robot can go 
     
-    def attractive_gradient(self, robot_pose, goal):
-        att_grad = self.k_att * (robot_pose - goal)
-        return att_grad
-    
+    # To get vertices of obstacles that are rotated 
     def get_vertices(self, obs):
         x, y, theta, w, h = obs
-
         vertices = np.array([
             [-w/2, -h/2],
             [w/2, -h/2],
             [w/2, h/2],
             [-w/2, h/2]
         ])
-
+        
         R = np.array([
             [np.cos(theta), -np.sin(theta)],
             [np.sin(theta), np.cos(theta)]
         ])
-
-        # apply rotation and translation 
-        rotated_vertices = vertices @ R.T + np.array([x, y])
-        return rotated_vertices
+        # rotation matrix and translation applied to get vertices of obstacle
+        return vertices @ R.T + np.array([x, y])
     
-    def point_to_obs(self, point, obs):
+    # Get distance from point to obstacle 
+    def distance_to_obstacle(self, point, obs):
         vertices = self.get_vertices(obs)
-
-        def point_to_segment(p, v1, v2):
-            segment = v2 - v1
-            segment_length_squared = np.sum(segment**2)
-            if segment_length_squared == 0:
-                return np.linalg.norm(p - v1)
-
-            t = max(0, min(1, np.dot(p - v1, segment) / segment_length_squared))
-            projection = v1 + t * segment 
-            return np.linalg.norm(p - projection)
+        min_dist = float('inf')
         
-        # get each egde distance
-        d_min = float('inf')
         for i in range(len(vertices)):
             v1 = vertices[i]
             v2 = vertices[(i + 1) % len(vertices)]
-            dist = point_to_segment(point, v1, v2)
-            d_min = min(d_min, dist)
+            segment = v2 - v1
+            segment_length_squared = np.sum(segment**2)
+            
+            if segment_length_squared == 0:
+                dist = np.linalg.norm(point - v1)
+            else:
+                t = np.clip(np.dot(point - v1, segment) / segment_length_squared, 0, 1)
+                projection = v1 + t * segment
+                dist = np.linalg.norm(point - projection)
+            
+            min_dist = min(min_dist, dist)
+        return min_dist
+    
+    # attractive gradient
+    def attractive_gradient(self, q, goal):
+        return self.k_att * (q - goal)
+    
+    # repulsive gradient 
+    def repulsive_gradient(self, q, obstacle):
+        d = self.distance_to_obstacle(q, obstacle)
         
-        return d_min
-
-    # for the obstacles
-    def repulsive_potential(self, robot_pose, obs):
-        # they used inverse function?
-        dist = self.point_to_obs(robot_pose, obs)
-        if dist <= self.rho_0:
-            return 0.5 * self.k_rep * (1/dist - 1/self.rho_0)**2
-        return 0.0
-
-    def repulsive_gradient(self, robot_pose, obs):
-        epsilon = 0.01
-        grad = np.zeros(2)
-
-        for i in range(2):
-            dp = np.zeros(2)
-            dp[i] = epsilon
-            grad[i] = (self.repulsive_potential(robot_pose + dp, obs) - self.repulsive_potential(robot_pose - dp, obs)) / (2*epsilon)
-
-        return grad
+        if d <= self.rho_0:
+            # Numerical gradient using central differences
+            epsilon = 0.01
+            grad = np.zeros(2)
+            
+            for i in range(2):
+                dp = np.zeros(2)
+                dp[i] = epsilon
+                dist_plus = self.distance_to_obstacle(q + dp, obstacle)
+                dist_minus = self.distance_to_obstacle(q - dp, obstacle)
+                
+                grad[i] = self.k_rep * (1/d - 1/self.rho_0) * (dist_plus - dist_minus) / (2 * epsilon * d**2)
+            
+            return -grad  # Negative because we want to move away from obstacles
+        return np.zeros(2)
     
-    def total_gradient(self, robot_pose, goal, obstacles):
-        grad = -self.attractive_gradient(robot_pose, goal)
+    # Total gradient for current robot position 
+    def total_gradient(self, q, goal, obstacles):
+        grad = -self.attractive_gradient(q, goal)  # Negative because we want to move downhill
+        
         for obs in obstacles:
-            grad += -self.repulsive_gradient(robot_pose, obs)
+            grad += -self.repulsive_gradient(q, obs)
+        
+        # Normalize gradient if it's too large
+        grad_norm = np.linalg.norm(grad)
+        if grad_norm > 1.0:
+            grad = grad / grad_norm
+            
         return grad
-
-# gradient
-def gradient_descent(planner, start, goal, obstacles, step_size=0.01, max_iterations=2000, threshold=0.01):
-    path = [start.copy()]
-    pos = start.copy()
-
-    for i in range(max_iterations):
-        grad = planner.total_gradient(pos, goal, obstacles)
-        if np.linalg.norm(grad) < threshold:
-            break
-        pos = pos - step_size * grad
-
-        #robot bounds
-        pos[0] = np.clip(pos[0], 0, 20)
-        pos[1] = np.clip(pos[1], 0, 20)
-
-        path.append(pos.copy())
-
-        if np.linalg.norm(pos - goal) < threshold:
-            break
     
-    return np.array(path)
+    # Generate path for robot
+    def plan_path(self, start, goal, obstacles, step_size=0.1, max_iters=2000):
+        path = [start.copy()]
+        q = start.copy()
+        
+        for _ in range(max_iters):
+            grad = self.total_gradient(q, goal, obstacles)
+            
+            if np.linalg.norm(grad) < 1e-3:  # Convergence check
+                break
+                
+            q = q + step_size * grad  # Algo 1
+            q = np.clip(q, [0, 0], [20, 20])  # No out of bounds
+            path.append(q.copy())
+            
+            if np.linalg.norm(q - goal) < 0.1: 
+                return np.array(path), True
+                
+        return np.array(path), False
 
-def animate_path(path, goal, obstacles, xlim=(0, 20), ylim=(0, 20)):
+# Same function for loading obstacles from environment 
+def load_obstacles(filename):
+    obstacles = []
+    try:
+        with open(filename, 'r') as f:
+            for line in f:
+                x, y, theta, w, h = map(float, line.strip('()\n').split(','))
+                obstacles.append([x, y, theta, w, h])
+    except Exception as e:
+        print(f"Error loading obstacles: {e}")
+        return []
+    return np.array(obstacles)
+
+# Animate robot path 
+def animate_path(path, goal, obstacles, planner, success):
     fig, ax = plt.subplots(figsize=(10, 10))
-    line, = ax.plot([], [], 'b-')  # Path line
-    point, = ax.plot([], [], 'bo', markersize=8)  # Moving point
     
-    # Plot static elements outside of init function
-    # Plot obstacles
+    # Plot obstacles as rectangles
     for obs in obstacles:
         vertices = planner.get_vertices(obs)
         polygon = Polygon(vertices, color='red', alpha=0.5)
         ax.add_patch(polygon)
-        
-    # Plot goal and start
-    ax.plot(goal[0], goal[1], 'g*', markersize=15, label='Goal')
-    ax.plot(path[0, 0], path[0, 1], 'bo', markersize=10, label='Start')
     
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    # Plot start and goal
+    ax.plot(path[0, 0], path[0, 1], 'bo', label='Start')
+    ax.plot(goal[0], goal[1], 'g*', markersize=15, label='Goal')
+    
+    # Create line
+    line, = ax.plot([], [], 'b-', lw=2, label='Path')
+    point, = ax.plot([], [], 'bo', markersize=8)
+    
+    ax.set_xlim(0, 20)
+    ax.set_ylim(0, 20)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('Robot Potential Function Path Animation')
+    outputStr = f"Path planning {'succeeded' if success else 'failed'} \n Path length: {len(path)} points"
+    plt.gcf().text(0.02, 0.94, outputStr, fontsize=14)
     ax.grid(True)
     ax.legend()
     
-    def init():
-        line.set_data([], [])
-        point.set_data([], [])
-        return line, point
-    
     def update(frame):
-        # Update the line to show the path up to current position
         line.set_data(path[:frame+1, 0], path[:frame+1, 1])
-        # Update the point position
-        point.set_data(path[frame, 0], path[frame, 1])
+        point.set_data([path[frame, 0]], [path[frame, 1]])
         return line, point
     
-    anim = FuncAnimation(fig, update, init_func=init, frames=len(path),
-                        interval=50, repeat=False, blit=True)
+    anim = FuncAnimation(
+        fig, update, frames=len(path),
+        interval=50, blit=True, repeat=False
+    )
+    
+    # save here 
+
     plt.show()
 
-def load_obstacles(filename):
-    obstacles = []
-    with open(filename, 'r') as f:
-        for line in f:
-            x, y, theta, w, h = map(float, line.strip('()\n').split(','))
-            obstacles.append([x, y, theta, w, h])
-    return obstacles
-
 def main():
-    print("hello")
-    parser = argparse.ArgumentParser(description="Potential Function")
-
-    parser.add_argument('--start', type=float, nargs='+', required=True)
-    parser.add_argument('--goal', type=float, nargs='+', required=True)
-
-    parser.add_argument('--obstacles', type=str, required=True, help='Path to obstacles file')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--start', type=float, nargs=2, required=True)
+    parser.add_argument('--goal', type=float, nargs=2, required=True)
+    parser.add_argument('--obstacles', type=str, required=True)
+    
     args = parser.parse_args()
     
-    # Convert arguments to numpy arrays
-    start_config = np.array(args.start)
-    goal_config = np.array(args.goal)
-
+    # Load obstacles from file
     obstacles = load_obstacles(args.obstacles)
     
-    global planner  # Make planner accessible to animation function
-    planner = PotentialPlanner(k_att=1.0, k_rep=100.0, rho_0=2.0)
+    planner = PotentialFunctionPlanner()
+    path, success = planner.plan_path(
+        np.array(args.start),
+        np.array(args.goal),
+        obstacles
+    )
     
-    # Generate path
-    path = gradient_descent(planner, start_config, goal_config, obstacles)
+    print(f"Path planning {'succeeded' if success else 'failed'}")
+    print(f"Path length: {len(path)} points")
     
-    # Animate the result
-    animate_path(path, goal_config, obstacles)
-    
+    animate_path(path, np.array(args.goal), obstacles, planner, success)
+
 if __name__ == "__main__":
     main()
