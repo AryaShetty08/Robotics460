@@ -166,6 +166,28 @@ def main():
     #print(trajectory_y)
     #print(trajectory_theta)
 
+    fig, ax = plt.subplots(2, 1, figsize=(8, 12))
+    ax[0].plot(trajectory_x, trajectory_y, '-b', label='Trajectory')
+    ax[0].plot(trajectory_x, trajectory_y, 'ob', markersize=4, label='Waypoints')  # Points
+    ax[0].plot([x0[0]], [x0[1]], 'mo', label='Input State 1')
+    ax[0].plot([x1[0]], [x1[1]], 'co', label='Input State 2')
+    ax[0].set_xlabel('X Position')
+    ax[0].set_ylabel('Y Position')
+    ax[0].legend()
+    ax[0].grid(True)
+    ax[0].axis('equal')
+
+    timesteps = range(len(trajectory_theta))
+    ax[1].plot(timesteps, trajectory_theta, '-g', label='Orientation (theta)')
+    ax[1].plot(timesteps, trajectory_theta, 'ob', markersize=4, label='Waypoints')  # Points
+    ax[1].axhline(y=[x0[2]], color='g', linestyle='-', label='Input State 1')
+    ax[1].axhline(y=[x1[2]], color='r', linestyle='-', label='Input State 2')
+    ax[1].set_xlabel('Time Step')
+    ax[1].set_ylabel('Theta (Orientation)')
+    ax[1].legend()
+    ax[1].grid(True)
+    plt.show()
+
     # Plot the 3D trajectory
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
@@ -182,20 +204,5 @@ def main():
     ax.set_aspect('equal')
     plt.show()
 
-    # Plot
-    
-    plt.figure(figsize=(8, 8))
-    plt.plot(trajectory_x, trajectory_y, '-b', label='Trajectory')
-    plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
-    plt.plot([goal_state[0]], [goal_state[1]], 'ro', label='Goal')
-    plt.plot([x0[0]], [x0[1]], 'mo', label='Input State 1')
-    plt.plot([x1[0]], [x1[1]], 'co', label='Input State 2')
-    plt.xlabel('X Position')
-    plt.ylabel('Y Position')
-    plt.legend()
-    plt.grid(True)
-    plt.axis('equal')
-    plt.show()
-    
 if __name__ == "__main__":
     main()

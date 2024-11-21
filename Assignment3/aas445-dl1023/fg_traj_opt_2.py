@@ -157,7 +157,8 @@ def main():
 
     # Plot
     plt.figure(figsize=(8, 8))
-    plt.plot(trajectory_x, trajectory_y, '-b', label='Trajectory')
+    plt.plot(trajectory_x, trajectory_y, '-b', alpha=0.5, label='Trajectory')  # Line
+    plt.plot(trajectory_x, trajectory_y, 'ob', markersize=4, label='Waypoints')  # Points
     plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
     plt.plot([goal_state[0]], [goal_state[1]], 'ro', label='Goal')
     plt.plot([x0[0]], [x0[1]], 'mo', label='Input State 1')

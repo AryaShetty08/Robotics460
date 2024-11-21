@@ -80,6 +80,8 @@ def main():
         alpha = float(t) / (T-1)
         theta0_guess = start_state[0] * (1-alpha) + goal_state[0] * alpha
         theta1_guess = start_state[1] * (1-alpha) + goal_state[1] * alpha
+
+        print(theta0_guess)
         
         initial_values.insert(theta0_key, gtsam.Rot2.fromAngle(theta0_guess))
         initial_values.insert(theta1_key, gtsam.Rot2.fromAngle(theta1_guess))
@@ -170,6 +172,7 @@ def main():
         end_effector_x.append(x)
         end_effector_y.append(y)
     plt.plot(end_effector_x, end_effector_y, '-b', label='Trajectory')
+    plt.plot(end_effector_x, end_effector_y, 'ob', markersize=4, label='Waypoints')  # Points
 
     plt.xlabel('X')
     plt.ylabel('Y')
@@ -181,6 +184,7 @@ def main():
     # Plot
     plt.figure(figsize=(8, 8))
     plt.plot(trajectory_theta0, trajectory_theta1, '-b', label='Trajectory')
+    plt.plot(trajectory_theta0, trajectory_theta1, 'ob', markersize=4, label='Waypoints')  # Points
     plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
     plt.plot([goal_state[0]], [goal_state[1]], 'ro', label='Goal')
     plt.xlabel('Theta0')
