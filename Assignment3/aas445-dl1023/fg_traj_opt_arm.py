@@ -30,20 +30,20 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
     
     # Compute Jacobians, matrix 2x4
     if H is not None:
+        
         # Create the 2x4 Jacobian matrix
-        J = np.zeros((2, 4))
+        H_matrix = np.zeros((2, 4))
         
         # Derivatives of error[0] with respect to variables
-        J[0, 0] = -1 / dt  # d(error[0])/d(theta0)
-        J[0, 2] = 1 / dt   # d(error[0])/d(theta0_next)
+        H_matrix[0, 0] = -1 / dt  # d(error[0])/d(theta0)
+        H_matrix[0, 2] = 1 / dt   # d(error[0])/d(theta0_next)
         
         # Derivatives of error[1] with respect to variables
-        J[1, 1] = -1 / dt  # d(error[1])/d(theta1)
-        J[1, 3] = 1 / dt   # d(error[1])/d(theta1_next)
+        H_matrix[1, 1] = -1 / dt  # d(error[1])/d(theta1)
+        H_matrix[1, 3] = 1 / dt   # d(error[1])/d(theta1_next)
         
         # Assign the computed Jacobian to H[0]
-        H[0] = J
-        print(f"Jacobian assigned to H[0]:\n{H[0]}")  # Should be (2, 4)
+        H[0] = H_matrix
         
     return error
 
