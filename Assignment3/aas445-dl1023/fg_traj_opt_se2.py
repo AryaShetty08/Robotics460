@@ -3,7 +3,10 @@ import gtsam
 from functools import partial
 from typing import List
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import argparse
+from mpl_toolkits.mplot3d import Axes3D
+
 
 # Error function for qt_next = qt + qd * dt
 def trajectory_error(dt: float, this: gtsam.CustomFactor, 
@@ -159,11 +162,28 @@ def main():
         trajectory_y.append(pos.y())
         trajectory_theta.append(pos.theta())
 
-    print(trajectory_x)
-    print(trajectory_y)
-    print(trajectory_theta)
+    #print(trajectory_x)
+    #print(trajectory_y)
+    #print(trajectory_theta)
+
+    # Plot the 3D trajectory
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot(trajectory_x, trajectory_y, trajectory_theta, '-b', label='Trajectory')
+    ax.scatter([start_state[0]], [start_state[1]], [start_state[2]], 'go', label='Start')
+    ax.scatter([goal_state[0]], [goal_state[1]], [goal_state[2]], 'ro', label='Goal')
+    ax.scatter([x0[0]], [x0[1]], [x0[2]], 'mo', label='Input State 1')
+    ax.scatter([x1[0]], [x1[1]], [x1[2]], 'co', label='Input State 2')
+    ax.set_xlabel('X Position')
+    ax.set_ylabel('Y Position')
+    ax.set_zlabel('Orientation (theta)')
+    ax.legend()
+    ax.grid(True)
+    ax.set_aspect('equal')
+    plt.show()
 
     # Plot
+    
     plt.figure(figsize=(8, 8))
     plt.plot(trajectory_x, trajectory_y, '-b', label='Trajectory')
     plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
@@ -176,6 +196,6 @@ def main():
     plt.grid(True)
     plt.axis('equal')
     plt.show()
-
+    
 if __name__ == "__main__":
     main()
