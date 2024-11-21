@@ -55,9 +55,11 @@ def error_func(y: np.ndarray, x: np.ndarray, this: gtsam.CustomFactor, v:
     return error
 
 # Plots the ground truth, the noisy data and the resulting polynomial
-def plot(T: int, GT: List[float], Z: List[float], a: float, b: float, c: float, d: float):
+def plot(GT: List[float], Z: List[float], a: float, b: float, c: float, d: float):
     import matplotlib.pyplot as plt
-    x = np.arange(T)
+
+    # x = [-10, 10]
+    x = np.linspace(-10, 10, 100)
     y = a * x**3 + b * x**2 + c * x + d
     plt.plot(x, GT, label="Ground Truth")
     plt.plot(x, Z, label="Noisy Data")
@@ -140,4 +142,4 @@ if __name__ == '__main__':
         print(i, GT[i], Z[i])
 
     # plot
-    plot(T, GT, Z, a, b, c, d)
+    plot(GT, Z, a, b, c, d)
