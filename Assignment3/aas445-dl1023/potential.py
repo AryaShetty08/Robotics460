@@ -19,7 +19,7 @@ Returns:
 - success - bool that is True if robot makes it to goal or False if planner fails
 """
 class PotentialFunctionPlanner:
-    def __init__(self, k_att=0.5, k_rep=200.0, rho_0=0.5):
+    def __init__(self, k_att=0.5, k_rep=200.0, rho_0=0.25):
         self.k_att = k_att  # Attractive force
         self.k_rep = k_rep  # Repulsive force
         self.rho_0 = rho_0  # Influences radius of how close robot can go 
@@ -101,6 +101,7 @@ class PotentialFunctionPlanner:
         return grad
     
     # Generate path for robot
+    # added iterations so doesn't run forever if convergence check is not met
     def plan_path(self, start, goal, obstacles, step_size=0.1, max_iters=2000):
         path = [start.copy()]
         q = start.copy()
@@ -172,6 +173,7 @@ def animate_path(path, goal, obstacles, planner, success):
     )
     
     # save here 
+    anim.save("Env4PotentialTest1.gif", writer="imagemagick")
 
     plt.show()
 
