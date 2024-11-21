@@ -38,6 +38,12 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
         
     return error
 
+# Calculate the end effector position
+def end_effector_pos(theta0, theta1):
+    x = np.cos(theta0) + np.cos(theta0 + theta1)
+    y = np.sin(theta0) + np.sin(theta0 + theta1)
+    return x, y
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--start', nargs=2, type=float, default=[0.0, 0.0], help='Start state (theta0, theta1)')
@@ -145,6 +151,32 @@ def main():
 
     print(trajectory_theta0)
     print(trajectory_theta1)
+
+        # Plot the trajectory
+    plt.figure(figsize=(8, 8))
+    startX, startY = end_effector_pos(start_state[0], start_state[1])
+    goalX, goalY = end_effector_pos(goal_state[0], goal_state[1])
+
+    plt.plot(startX, startY, 'go', label='Start')
+    plt.plot(goalX, goalY, 'ro', label='Goal')
+
+    # Plot the end effector trajectory
+    end_effector_x = []
+    end_effector_y = []
+    for t in range(T):
+        theta0 = trajectory_theta0[t]
+        theta1 = trajectory_theta1[t]
+        x, y = end_effector_pos(theta0, theta1)
+        end_effector_x.append(x)
+        end_effector_y.append(y)
+    plt.plot(end_effector_x, end_effector_y, '-b', label='Trajectory')
+
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.legend()
+    plt.grid(True)
+    plt.axis('equal')
+    plt.show()
 
     # Plot
     plt.figure(figsize=(8, 8))

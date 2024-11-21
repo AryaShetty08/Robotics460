@@ -173,7 +173,7 @@ def animate_path(path, goal, obstacles, planner, success):
     )
     
     # save here 
-    anim.save("Env5PotentialTest5.gif", writer="imagemagick")
+    #anim.save("Env5PotentialTest5.gif", writer="imagemagick")
 
     plt.show()
 
