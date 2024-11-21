@@ -22,8 +22,8 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
     theta1_next = v.atRot2(theta1_next_key).theta()
     
     # Predict next state based on dynamics
-    pred_theta0_next = theta0 + (theta0_next - theta0) / dt
-    pred_theta1_next = theta1 + (theta1_next - theta1) / dt
+    pred_theta0_next = gtsam.Rot2.fromAngle(theta0 + (theta0_next - theta0)).theta()
+    pred_theta1_next = gtsam.Rot2.fromAngle(theta1 + (theta1_next - theta1)).theta()
     
     # Compute error
     error = np.array([theta0_next - pred_theta0_next, theta1_next - pred_theta1_next])
@@ -31,19 +31,10 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
     # Compute Jacobians, matrix 2x4
     if H is not None:
         
-        # Create the 2x4 Jacobian matrix
-        H_matrix = np.zeros((2, 4))
-        
-        # Derivatives of error[0] with respect to variables
-        H_matrix[0, 0] = -1 / dt  # d(error[0])/d(theta0)
-        H_matrix[0, 2] = 1 / dt   # d(error[0])/d(theta0_next)
-        
-        # Derivatives of error[1] with respect to variables
-        H_matrix[1, 1] = -1 / dt  # d(error[1])/d(theta1)
-        H_matrix[1, 3] = 1 / dt   # d(error[1])/d(theta1_next)
-        
-        # Assign the computed Jacobian to H[0]
-        H[0] = H_matrix
+        H[0] = np.array([
+            [-1 / dt, 0, 1 / dt, 0],  # Jacobian of error w.r.t. [theta0, theta1, theta0_next, theta1_next]
+            [0, -1 / dt, 0, 1 / dt]
+        ])
         
     return error
 
