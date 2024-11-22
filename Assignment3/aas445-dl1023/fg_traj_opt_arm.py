@@ -14,28 +14,53 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
     theta1_key = this.keys()[1]
     theta0_next_key = this.keys()[2]
     theta1_next_key = this.keys()[3]
+
+    theta0d_key = this.keys()[4]
+    theta1d_key = this.keys()[5]
     
     # Get the angles of arms
     theta0 = v.atRot2(theta0_key).theta()
     theta1 = v.atRot2(theta1_key).theta()
     theta0_next = v.atRot2(theta0_next_key).theta()
     theta1_next = v.atRot2(theta1_next_key).theta()
+
+    # Gets the angular velocity of the arms
+    theta0d = v.atRot2(theta0d_key).theta()
+    theta1d = v.atRot2(theta1d_key).theta()
     
     # Predict next state based on dynamics
-    pred_theta0_next = gtsam.Rot2.fromAngle(theta0 + (theta0_next - theta0)).theta()
-    pred_theta1_next = gtsam.Rot2.fromAngle(theta1 + (theta1_next - theta1)).theta()
-    
+    pred_theta0_next = theta0 + dt * theta0d
+    pred_theta1_next = theta1 + dt * theta1d
+     
     # Compute error
     error = np.array([theta0_next - pred_theta0_next, theta1_next - pred_theta1_next])
     
-    # Compute Jacobians, matrix 2x4
+    # Compute Jacobians
     if H is not None:
-        
-        H[0] = np.array([
-            [-1 / dt, 0, 1 / dt, 0],  # Jacobian of error w.r.t. [theta0, theta1, theta0_next, theta1_next]
-            [0, -1 / dt, 0, 1 / dt]
+        H[0] = np.array([  # Derivative w.r.t. theta0
+            [-1,  0],
+            [ 0,  0]
         ])
-        
+        H[1] = np.array([  # Derivative w.r.t. theta1
+            [ 0, -1],
+            [ 0,  0]
+        ])
+        H[2] = np.array([  # Derivative w.r.t. theta0_next
+            [ 1,  0],
+            [ 0,  0]
+        ])
+        H[3] = np.array([  # Derivative w.r.t. theta1_next
+            [ 0,  1],
+            [ 0,  0]
+        ])
+        H[4] = np.array([  # Derivative w.r.t. theta0d
+            [-dt,  0],
+            [ 0,  0]
+        ])
+        H[5] = np.array([  # Derivative w.r.t. theta1d
+            [ 0, -dt],
+            [ 0,  0]
+        ])
     return error
 
 # Calculate the end effector position
@@ -75,16 +100,23 @@ def main():
     for t in range(T):
         theta0_key = gtsam.symbol('a', t)
         theta1_key = gtsam.symbol('b', t)
+        theta0d_key = gtsam.symbol('c', t)
+        theta1d_key = gtsam.symbol('d', t)
         
         # Linear interpolation for initial guess, needed again
         alpha = float(t) / (T-1)
         theta0_guess = start_state[0] * (1-alpha) + goal_state[0] * alpha
+        theta0d_guess = (goal_state[0] - start_state[0]) / (T * dt)
+
         theta1_guess = start_state[1] * (1-alpha) + goal_state[1] * alpha
+        theta1d_guess = (goal_state[1] - start_state[1]) / (T * dt)
 
         print(theta0_guess)
         
         initial_values.insert(theta0_key, gtsam.Rot2.fromAngle(theta0_guess))
         initial_values.insert(theta1_key, gtsam.Rot2.fromAngle(theta1_guess))
+        initial_values.insert(theta0d_key, gtsam.Rot2.fromAngle(theta0d_guess))
+        initial_values.insert(theta1d_key, gtsam.Rot2.fromAngle(theta1d_guess))
     
     # Add start and goal priors
     # have to do them separately since it doesn't like multiple arguments
@@ -120,6 +152,9 @@ def main():
         theta1_key = gtsam.symbol('b', t)
         theta0_next_key = gtsam.symbol('a', t+1)
         theta1_next_key = gtsam.symbol('b', t+1)
+
+        theta0d_key = gtsam.symbol('c', t)
+        theta1d_key = gtsam.symbol('d' , t)
         
         # Create ordered key vector
         keys = gtsam.KeyVector()
@@ -127,6 +162,9 @@ def main():
         keys.append(theta1_key)
         keys.append(theta0_next_key)
         keys.append(theta1_next_key)
+
+        keys.append(theta0d_key)
+        keys.append(theta1d_key)
         
         # Create dynamics factor, have to use nonlinear
         factor = gtsam.CustomFactor(
@@ -148,6 +186,7 @@ def main():
     for t in range(T):
         theta0_key = gtsam.symbol('a', t)
         theta1_key = gtsam.symbol('b', t)
+
         trajectory_theta0.append(result.atRot2(theta0_key).theta())
         trajectory_theta1.append(result.atRot2(theta1_key).theta())
 
