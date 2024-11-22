@@ -12,58 +12,41 @@ def arm_trajectory_error(dt: float, this: gtsam.CustomFactor,
     # Get keys
     theta0_key = this.keys()[0]
     theta1_key = this.keys()[1]
-    theta0_next_key = this.keys()[2]
-    theta1_next_key = this.keys()[3]
-
-    theta0d_key = this.keys()[4]
-    theta1d_key = this.keys()[5]
+    u0_key = this.keys()[2]
+    u1_key = this.keys()[3]
+    theta0_next_key = this.keys()[4]
+    theta1_next_key = this.keys()[5]
     
-    # Get the angles of arms
-    theta0 = v.atRot2(theta0_key).theta()
-    theta1 = v.atRot2(theta1_key).theta()
-    theta0_next = v.atRot2(theta0_next_key).theta()
-    theta1_next = v.atRot2(theta1_next_key).theta()
-
-    # Gets the angular velocity of the arms
-    theta0d = v.atRot2(theta0d_key).theta()
-    theta1d = v.atRot2(theta1d_key).theta()
+    # Get the angles and velocities
+    theta0 = v.atRot2(theta0_key)
+    theta1 = v.atRot2(theta1_key)
+    u0 = v.atDouble(u0_key)
+    u1 = v.atDouble(u1_key)
+    theta0_next = v.atRot2(theta0_next_key)
+    theta1_next = v.atRot2(theta1_next_key)
     
     # Predict next state based on dynamics
-    pred_theta0_next = theta0 + dt * theta0d
-    pred_theta1_next = theta1 + dt * theta1d
-     
-    # Compute error
-    error = np.array([theta0_next - pred_theta0_next, theta1_next - pred_theta1_next])
+    pred_theta0_next = theta0 * gtsam.Rot2(u0 * dt)
+    pred_theta1_next = theta1 * gtsam.Rot2(u1 * dt)
     
+    # Compute error
+    error0 = theta0_next.between(pred_theta0_next)
+    error1 = theta1_next.between(pred_theta1_next)
+    
+    error = np.array([error0.theta(), error1.theta()])
+
     # Compute Jacobians
     if H is not None:
-        H[0] = np.array([  # Derivative w.r.t. theta0
-            [-1,  0],
-            [ 0,  0]
-        ])
-        H[1] = np.array([  # Derivative w.r.t. theta1
-            [ 0, -1],
-            [ 0,  0]
-        ])
-        H[2] = np.array([  # Derivative w.r.t. theta0_next
-            [ 1,  0],
-            [ 0,  0]
-        ])
-        H[3] = np.array([  # Derivative w.r.t. theta1_next
-            [ 0,  1],
-            [ 0,  0]
-        ])
-        H[4] = np.array([  # Derivative w.r.t. theta0d
-            [-dt,  0],
-            [ 0,  0]
-        ])
-        H[5] = np.array([  # Derivative w.r.t. theta1d
-            [ 0, -dt],
-            [ 0,  0]
-        ])
+        H[0] = np.array([[1.0], [0.0]])  # d/d theta0
+        H[1] = np.array([[0.0], [1.0]])  # d/d theta1
+        H[2] = np.array([[dt], [0.0]])   # d/d u0
+        H[3] = np.array([[0.0], [dt]])   # d/d u1
+        H[4] = np.array([[-1.0], [0.0]]) # d/d theta0_next
+        H[5] = np.array([[0.0], [-1.0]]) # d/d theta1_next
+        
     return error
 
-# Calculate the end effector position
+# just for me to graph and see it
 def end_effector_pos(theta0, theta1):
     x = np.cos(theta0) + np.cos(theta0 + theta1)
     y = np.sin(theta0) + np.sin(theta0 + theta1)
@@ -83,117 +66,108 @@ def main():
     T = args.T
     dt = 0.1
     
+    # Create factor graph
     graph = gtsam.NonlinearFactorGraph()
     
-    # Create noise model for angles
-    # need two different noise models for dynamics factors and prior factors 
-    sigma = 0.1
-    noise_model = gtsam.noiseModel.Diagonal.Sigmas(np.array([sigma, sigma]))
-    prior_noise_model = gtsam.noiseModel.Isotropic.Sigma(1, sigma)
-
+    # Noise models
+    sigma = 1.0
+    vel_sigma = 1.0
+    noise_model = gtsam.noiseModel.Isotropic.Sigma(2, sigma)
+    vel_noise_model = gtsam.noiseModel.Isotropic.Sigma(1, vel_sigma)
+    prior_noise_model = gtsam.noiseModel.Isotropic.Sigma(1, 0.1)  # Tighter constraint for priors
+    
     # Create initial values
     initial_values = gtsam.Values()
     
-    # Initialize all variables first
-    # IMPORTANT 
-    # had to rename the theta0 and theta1 since they only accept characters to a and b
+    # Initialize all variables to zero
     for t in range(T):
-        theta0_key = gtsam.symbol('a', t)
-        theta1_key = gtsam.symbol('b', t)
-        theta0d_key = gtsam.symbol('c', t)
-        theta1d_key = gtsam.symbol('d', t)
-        
-        # Linear interpolation for initial guess, needed again
-        alpha = float(t) / (T-1)
-        theta0_guess = start_state[0] * (1-alpha) + goal_state[0] * alpha
-        theta0d_guess = (goal_state[0] - start_state[0]) / (T * dt)
-
-        theta1_guess = start_state[1] * (1-alpha) + goal_state[1] * alpha
-        theta1d_guess = (goal_state[1] - start_state[1]) / (T * dt)
-
-        print(theta0_guess)
-        
-        initial_values.insert(theta0_key, gtsam.Rot2.fromAngle(theta0_guess))
-        initial_values.insert(theta1_key, gtsam.Rot2.fromAngle(theta1_guess))
-        initial_values.insert(theta0d_key, gtsam.Rot2.fromAngle(theta0d_guess))
-        initial_values.insert(theta1d_key, gtsam.Rot2.fromAngle(theta1d_guess))
+        # Initialize angles and velocities 
+        initial_values.insert(gtsam.symbol('a', t), gtsam.Rot2(0.0))
+        initial_values.insert(gtsam.symbol('b', t), gtsam.Rot2(0.0))
+        initial_values.insert(gtsam.symbol('u', t), -0.1)
+        initial_values.insert(gtsam.symbol('v', t), 0.1)
     
-    # Add start and goal priors
-    # have to do them separately since it doesn't like multiple arguments
-
-    start_prior = gtsam.PriorFactorRot2(
-        gtsam.symbol('a', 0), gtsam.Rot2.fromAngle(start_state[0]),
-        prior_noise_model
-    )
-    graph.add(start_prior)
-
-    start_prior_b = gtsam.PriorFactorRot2(
-        gtsam.symbol('b', 0), gtsam.Rot2.fromAngle(start_state[1]),
-        prior_noise_model
-    )
-    graph.add(start_prior_b)
-
-    goal_prior = gtsam.PriorFactorRot2(
-        gtsam.symbol('a', T-1), gtsam.Rot2.fromAngle(goal_state[0]),
-        prior_noise_model
-    )
-    graph.add(goal_prior)
-
-    goal_prior_b = gtsam.PriorFactorRot2(
-        gtsam.symbol('b', T-1), gtsam.Rot2.fromAngle(goal_state[1]),
-        prior_noise_model
-    )
-    graph.add(goal_prior_b)
-
+    # Add start and goal constraints
+    graph.add(gtsam.PriorFactorRot2(gtsam.symbol('a', 0), 
+                                   gtsam.Rot2(start_state[0]),
+                                   prior_noise_model))
+    graph.add(gtsam.PriorFactorRot2(gtsam.symbol('b', 0), 
+                                   gtsam.Rot2(start_state[1]),
+                                   prior_noise_model))
+    graph.add(gtsam.PriorFactorRot2(gtsam.symbol('a', T-1), 
+                                   gtsam.Rot2(goal_state[0]),
+                                   prior_noise_model))
+    graph.add(gtsam.PriorFactorRot2(gtsam.symbol('b', T-1), 
+                                   gtsam.Rot2(goal_state[1]),
+                                   prior_noise_model))
+    
+    # Add velocity constraints
+    graph.add(gtsam.PriorFactorDouble(gtsam.symbol('u', 0), -0.1, vel_noise_model))
+    graph.add(gtsam.PriorFactorDouble(gtsam.symbol('v', 0), 0.1, vel_noise_model))
+    graph.add(gtsam.PriorFactorDouble(gtsam.symbol('u', T-1), -0.1, vel_noise_model))
+    graph.add(gtsam.PriorFactorDouble(gtsam.symbol('v', T-1), 0.1, vel_noise_model))
     
     # Add dynamics factors
     for t in range(T-1):
-        theta0_key = gtsam.symbol('a', t)
-        theta1_key = gtsam.symbol('b', t)
-        theta0_next_key = gtsam.symbol('a', t+1)
-        theta1_next_key = gtsam.symbol('b', t+1)
-
-        theta0d_key = gtsam.symbol('c', t)
-        theta1d_key = gtsam.symbol('d' , t)
-        
-        # Create ordered key vector
         keys = gtsam.KeyVector()
-        keys.append(theta0_key)
-        keys.append(theta1_key)
-        keys.append(theta0_next_key)
-        keys.append(theta1_next_key)
-
-        keys.append(theta0d_key)
-        keys.append(theta1d_key)
+        keys.append(gtsam.symbol('a', t))    # theta0
+        keys.append(gtsam.symbol('b', t))    # theta1
+        keys.append(gtsam.symbol('u', t))    # u0
+        keys.append(gtsam.symbol('v', t))    # u1
+        keys.append(gtsam.symbol('a', t+1))  # theta0_next
+        keys.append(gtsam.symbol('b', t+1))  # theta1_next
         
-        # Create dynamics factor, have to use nonlinear
-        factor = gtsam.CustomFactor(
-            noise_model,
-            keys,
-            partial(arm_trajectory_error, dt)
-        )
+        factor = gtsam.CustomFactor(noise_model, keys, partial(arm_trajectory_error, dt))
         graph.add(factor)
-
-    print(graph)
-
+        
+        # Add velocity smoothness
+        if t < T-2:  # Changed to T-2 to avoid adding constraints beyond available variables
+            graph.add(gtsam.BetweenFactorDouble(
+                gtsam.symbol('u', t), gtsam.symbol('u', t+1), 0.0, vel_noise_model))
+            graph.add(gtsam.BetweenFactorDouble(
+                gtsam.symbol('v', t), gtsam.symbol('v', t+1), 0.0, vel_noise_model))
+    
     # Optimize
-    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_values)
+    params = gtsam.LevenbergMarquardtParams()
+    params.setVerbosityLM("SUMMARY")
+    optimizer = gtsam.LevenbergMarquardtOptimizer(graph, initial_values, params)
     result = optimizer.optimize()
     
-    # Get results
+    # Extract results
     trajectory_theta0 = []
     trajectory_theta1 = []
+    velocities_u0 = []
+    velocities_u1 = []
+    
     for t in range(T):
-        theta0_key = gtsam.symbol('a', t)
-        theta1_key = gtsam.symbol('b', t)
+        trajectory_theta0.append(result.atRot2(gtsam.symbol('a', t)).theta())
+        trajectory_theta1.append(result.atRot2(gtsam.symbol('b', t)).theta())
+        velocities_u0.append(result.atDouble(gtsam.symbol('u', t)))
+        velocities_u1.append(result.atDouble(gtsam.symbol('v', t)))
 
-        trajectory_theta0.append(result.atRot2(theta0_key).theta())
-        trajectory_theta1.append(result.atRot2(theta1_key).theta())
+    # Plot results
+    plt.figure(figsize=(12, 4))
+    plt.subplot(121)
+    plt.plot(trajectory_theta0, label='Theta0')
+    plt.plot(trajectory_theta1, label='Theta1')
+    plt.xlabel('Time step')
+    plt.ylabel('Angle (rad)')
+    plt.title('Joint Angles')
+    plt.legend()
+    plt.grid(True)
 
-    print(trajectory_theta0)
-    print(trajectory_theta1)
+    plt.subplot(122)
+    plt.plot(velocities_u0, label='Velocity0')
+    plt.plot(velocities_u1, label='Velocity1')
+    plt.xlabel('Time step')
+    plt.ylabel('Angular velocity')
+    plt.title('Joint Velocities')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
-        # Plot the trajectory
+    # Plot end effector trajectory
     plt.figure(figsize=(8, 8))
     startX, startY = end_effector_pos(start_state[0], start_state[1])
     goalX, goalY = end_effector_pos(goal_state[0], goal_state[1])
@@ -201,33 +175,18 @@ def main():
     plt.plot(startX, startY, 'go', label='Start')
     plt.plot(goalX, goalY, 'ro', label='Goal')
 
-    # Plot the end effector trajectory
     end_effector_x = []
     end_effector_y = []
     for t in range(T):
-        theta0 = trajectory_theta0[t]
-        theta1 = trajectory_theta1[t]
-        x, y = end_effector_pos(theta0, theta1)
+        x, y = end_effector_pos(trajectory_theta0[t], trajectory_theta1[t])
         end_effector_x.append(x)
         end_effector_y.append(y)
+    
     plt.plot(end_effector_x, end_effector_y, '-b', label='Trajectory')
-    plt.plot(end_effector_x, end_effector_y, 'ob', markersize=4, label='Waypoints')  # Points
-
+    plt.plot(end_effector_x, end_effector_y, 'ob', markersize=4)
     plt.xlabel('X')
     plt.ylabel('Y')
-    plt.legend()
-    plt.grid(True)
-    plt.axis('equal')
-    plt.show()
-
-    # Plot
-    plt.figure(figsize=(8, 8))
-    plt.plot(trajectory_theta0, trajectory_theta1, '-b', label='Trajectory')
-    plt.plot(trajectory_theta0, trajectory_theta1, 'ob', markersize=4, label='Waypoints')  # Points
-    plt.plot([start_state[0]], [start_state[1]], 'go', label='Start')
-    plt.plot([goal_state[0]], [goal_state[1]], 'ro', label='Goal')
-    plt.xlabel('Theta0')
-    plt.ylabel('Theta1')
+    plt.title('End Effector Trajectory')
     plt.legend()
     plt.grid(True)
     plt.axis('equal')
@@ -235,5 +194,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Remember to make factor graph
