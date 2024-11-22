@@ -152,8 +152,8 @@ def main():
         trajectory_x.append(pos[0])
         trajectory_y.append(pos[1])
 
-    print(trajectory_x)
-    print(trajectory_y)
+    #print(trajectory_x)
+    #print(trajectory_y)
 
     # Plot
     plt.figure(figsize=(8, 8))

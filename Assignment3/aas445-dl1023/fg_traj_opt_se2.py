@@ -7,7 +7,6 @@ from matplotlib.patches import Rectangle
 import argparse
 from mpl_toolkits.mplot3d import Axes3D
 
-
 # Error function for qt_next = qt + qd * dt
 def trajectory_error(dt: float, this: gtsam.CustomFactor, 
                     v: gtsam.Values, H: List[np.ndarray]):
