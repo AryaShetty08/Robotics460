@@ -121,7 +121,7 @@ def main():
         graph.add(factor)
         
         # Add velocity smoothness
-        if t < T-2:  # Changed to T-2 to avoid adding constraints beyond available variables
+        if t < T-2: 
             graph.add(gtsam.BetweenFactorDouble(
                 gtsam.symbol('u', t), gtsam.symbol('u', t+1), 0.0, vel_noise_model))
             graph.add(gtsam.BetweenFactorDouble(
